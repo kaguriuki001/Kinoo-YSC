@@ -1,13 +1,9 @@
 import { auth } from "@/lib/auth";
 import { connectDB } from "@/lib/db";
 import User from "@/models/User";
-import Event from "@/models/Event";
-import Transaction from "@/models/Transaction";
-import Subcommittee from "@/models/Subcommittee";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 
-// Server actions for role management
 async function approveMember(id: string) {
   "use server";
   await connectDB();
@@ -15,29 +11,10 @@ async function approveMember(id: string) {
   revalidatePath('/dashboard/moderator');
 }
 
-async function rejectMember(id: string) {
-  "use server";
-  await connectDB();
-  await User.findByIdAndUpdate(id, { status: 'dismissed' });
-  revalidatePath('/dashboard/moderator');
-}
-
 async function assignRole(id: string, role: string) {
   "use server";
   await connectDB();
-  await User.findByIdAndUpdate(id, { 
-    $addToSet: { roles: role },
-    status: 'active'
-  });
-  revalidatePath('/dashboard/moderator');
-}
-
-async function removeRole(id: string, role: string) {
-  "use server";
-  await connectDB();
-  await User.findByIdAndUpdate(id, { 
-    $pull: { roles: role }
-  });
+  await User.findByIdAndUpdate(id, { $addToSet: { roles: role }, status: 'active' });
   revalidatePath('/dashboard/moderator');
 }
 
@@ -46,137 +23,52 @@ export default async function ModeratorDashboard() {
   if (!session) redirect("/");
 
   await connectDB();
-  const totalMembers = await User.countDocuments();
-  const totalEvents = await Event.countDocuments();
-  const totalTransactions = await Transaction.countDocuments();
-  const totalSubcommittees = await Subcommittee.countDocuments();
   const pendingUsers = await User.find({ status: 'pending' });
-  const activeUsers = await User.find({ status: 'active' }).sort({ createdAt: 1 });
+  const activeUsers = await User.find({ status: 'active' });
 
-  const allRoles = [
-    'member', 'secretary', 'treasurer', 'organizing_secretary', 
-    'vice_secretary', 'liturgist', 'vice_moderator', 'moderator', 
-    'patron_matron', 'father'
-  ];
+  const allRoles = ['secretary', 'treasurer', 'organizing_secretary', 'vice_secretary', 'liturgist', 'vice_moderator', 'moderator', 'patron_matron', 'father'];
 
   return (
     <div>
       <h1 className="text-2xl font-bold mb-4">Moderator Dashboard</h1>
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-        <div className="bg-blue-600 text-white p-6 rounded-lg shadow">
-          <h2 className="text-lg">Total Members</h2>
-          <p className="text-3xl font-bold">{totalMembers}</p>
-        </div>
-        <div className="bg-white p-6 rounded-lg shadow">
-          <h2 className="text-lg">Events</h2>
-          <p className="text-3xl font-bold">{totalEvents}</p>
-        </div>
-        <div className="bg-white p-6 rounded-lg shadow">
-          <h2 className="text-lg">Transactions</h2>
-          <p className="text-3xl font-bold">{totalTransactions}</p>
-        </div>
-        <div className="bg-white p-6 rounded-lg shadow">
-          <h2 className="text-lg">Subcommittees</h2>
-          <p className="text-3xl font-bold">{totalSubcommittees}</p>
-        </div>
-      </div>
-
       {pendingUsers.length > 0 && (
         <div className="bg-white rounded shadow mb-6">
-          <h2 className="text-lg font-semibold p-4 border-b bg-yellow-50">
-            Pending Approvals ({pendingUsers.length})
-          </h2>
-          <table className="w-full">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="p-3 text-left">Name</th>
-                <th className="p-3 text-left">Phone</th>
-                <th className="p-3 text-left">ID Number</th>
-                <th className="p-3 text-left">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {pendingUsers.map((u: any) => (
-                <tr key={u._id} className="border-b">
-                  <td className="p-3">{u.fullName}</td>
-                  <td className="p-3">{u.phone}</td>
-                  <td className="p-3">{u.idNumber || 'N/A'}</td>
-                  <td className="p-3 flex gap-2">
-                    <form action={approveMember.bind(null, u._id.toString())}>
-                      <button className="bg-green-600 text-white px-3 py-1 rounded text-sm">
-                        Approve as Member
-                      </button>
-                    </form>
-                    <form action={rejectMember.bind(null, u._id.toString())}>
-                      <button className="bg-red-600 text-white px-3 py-1 rounded text-sm">
-                        Reject
-                      </button>
-                    </form>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <h2 className="text-lg font-semibold p-4 border-b bg-yellow-50">Pending Approvals ({pendingUsers.length})</h2>
+          {pendingUsers.map((u: any) => (
+            <div key={u._id} className="p-4 border-b flex justify-between items-center">
+              <div>
+                <p className="font-medium">{u.fullName}</p>
+                <p className="text-sm text-gray-500">{u.phone}</p>
+              </div>
+              <form action={approveMember.bind(null, u._id.toString())}>
+                <button className="bg-green-600 text-white px-4 py-2 rounded">Approve</button>
+              </form>
+            </div>
+          ))}
         </div>
       )}
 
       <div className="bg-white rounded shadow">
-        <h2 className="text-lg font-semibold p-4 border-b">
-          Active Members & Role Assignment ({activeUsers.length})
-        </h2>
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="p-3 text-left">Name</th>
-                <th className="p-3 text-left">Phone</th>
-                <th className="p-3 text-left">Current Roles</th>
-                <th className="p-3 text-left">Add Role</th>
-                <th className="p-3 text-left">Remove Role</th>
-              </tr>
-            </thead>
-            <tbody>
-              {activeUsers.map((u: any) => (
-                <tr key={u._id} className="border-b">
-                  <td className="p-3">{u.fullName}</td>
-                  <td className="p-3">{u.phone}</td>
-                  <td className="p-3">
-                    <div className="flex flex-wrap gap-1">
-                      {u.roles.map((role: string) => (
-                        <span key={role} className="bg-blue-100 text-blue-700 px-2 py-0.5 rounded text-xs">
-                          {role.replace('_', ' ')}
-                        </span>
-                      ))}
-                    </div>
-                  </td>
-                  <td className="p-3">
-                    <div className="flex flex-wrap gap-1">
-                      {allRoles.filter(role => !u.roles.includes(role)).map(role => (
-                        <form key={role} action={assignRole.bind(null, u._id.toString(), role)}>
-                          <button className="bg-green-100 text-green-700 px-2 py-0.5 rounded text-xs hover:bg-green-200">
-                            + {role.replace('_', ' ')}
-                          </button>
-                        </form>
-                      ))}
-                    </div>
-                  </td>
-                  <td className="p-3">
-                    <div className="flex flex-wrap gap-1">
-                      {u.roles.filter(role => role !== 'member').map(role => (
-                        <form key={role} action={removeRole.bind(null, u._id.toString(), role)}>
-                          <button className="bg-red-100 text-red-700 px-2 py-0.5 rounded text-xs hover:bg-red-200">
-                            - {role.replace('_', ' ')}
-                          </button>
-                        </form>
-                      ))}
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <h2 className="text-lg font-semibold p-4 border-b">Active Members ({activeUsers.length})</h2>
+        {activeUsers.map((u: any) => (
+          <div key={u._id} className="p-4 border-b">
+            <div className="flex justify-between items-center">
+              <div>
+                <p className="font-medium">{u.fullName}</p>
+                <p className="text-sm text-gray-500">{u.phone}</p>
+                <p className="text-xs text-gray-400">Roles: {u.roles.join(', ')}</p>
+              </div>
+              <div className="flex flex-wrap gap-1">
+                {allRoles.filter((r: string) => !u.roles.includes(r)).map((r: string) => (
+                  <form key={r} action={assignRole.bind(null, u._id.toString(), r)}>
+                    <button className="bg-blue-100 text-blue-700 px-2 py-1 rounded text-xs">+ {r.replace('_', ' ')}</button>
+                  </form>
+                ))}
+              </div>
+            </div>
+          </div>
+        ))}
       </div>
     </div>
   );

@@ -1,4 +1,4 @@
-export const ROLES = {
+export const ROLES: Record<string, string[]> = {
   member: ["view_own_profile", "view_events", "make_contribution", "request_attendance"],
   secretary: ["register_member", "send_comms", "manage_minutes", "manage_risk_audit"],
   treasurer: ["view_ledger", "manage_budgets", "manage_finance_committee"],
