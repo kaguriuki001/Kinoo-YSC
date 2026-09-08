@@ -2,9 +2,6 @@ import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
 
-const User = (await import("@/models/User")).default;
-const { connectDB } = await import("@/lib/db");
-
 export const { handlers, signIn, signOut, auth } = NextAuth({
   providers: [
     Credentials({
@@ -14,17 +11,24 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         password: { label: "Password", type: "password" }
       },
       async authorize(credentials) {
-        await connectDB();
-        const user = await User.findOne({ phone: credentials.phone });
-        if (!user) throw new Error("Invalid credentials");
-        const isValid = await bcrypt.compare(credentials.password as string, user.passwordHash);
-        if (!isValid) throw new Error("Invalid credentials");
-        return { 
-          id: String(user._id), 
-          name: user.fullName, 
-          phone: user.phone, 
-          roles: user.roles 
-        };
+        try {
+          const { connectDB } = await import("@/lib/db");
+          const User = (await import("@/models/User")).default;
+          await connectDB();
+          const user = await User.findOne({ phone: credentials.phone });
+          if (!user) return null;
+          const isValid = await bcrypt.compare(credentials.password as string, user.passwordHash);
+          if (!isValid) return null;
+          return { 
+            id: String(user._id), 
+            name: user.fullName, 
+            phone: user.phone, 
+            roles: user.roles 
+          };
+        } catch (err) {
+          console.error("Auth error:", err);
+          return null;
+        }
       }
     })
   ],
@@ -47,6 +51,6 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     }
   },
   pages: { signIn: "/" },
-  secret: process.env.NEXTAUTH_SECRET,
+  secret: process.env.NEXTAUTH_SECRET || "kinoo-ysc-secret-key-2026",
   trustHost: true
 });
