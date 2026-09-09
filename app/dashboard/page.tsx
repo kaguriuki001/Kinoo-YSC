@@ -1,39 +1,32 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 
 export default function Dashboard() {
-  const [session, setSession] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
+  const [user, setUser] = useState<any>(null);
 
   useEffect(() => {
     fetch("/api/auth/session")
-      .then(res => res.json())
+      .then(r => r.json())
       .then(data => {
-        setSession(data);
-        setLoading(false);
-      })
-      .catch(() => setLoading(false));
+        if (data?.user) setUser(data.user);
+        else window.location.href = "/";
+      });
   }, []);
 
-  if (loading) return <div style={{ padding: '20px' }}>Loading...</div>;
-  if (!session?.user) {
-    if (typeof window !== "undefined") window.location.href = "/";
-    return null;
-  }
+  if (!user) return <div style={{padding: '40px', textAlign: 'center'}}>Loading...</div>;
 
-  const roles = session.user.roles || [];
-  const name = session.user.name || "User";
+  const roles = user.roles && user.roles.length > 0 ? user.roles : ['member'];
 
   return (
-    <div style={{ padding: '20px' }}>
-      <h1 style={{ fontSize: '24px', marginBottom: '10px' }}>Welcome, {name}!</h1>
-      <p style={{ color: '#666', marginBottom: '20px' }}>Select a console:</p>
-      <div style={{ display: 'grid', gap: '10px' }}>
+    <div style={{ padding: '20px', maxWidth: '800px', margin: '0 auto' }}>
+      <h1 style={{ fontSize: '28px' }}>Welcome, {user.name}!</h1>
+      <p style={{ color: '#666' }}>Your roles: {roles.join(', ')}</p>
+      <div style={{ display: 'grid', gap: '10px', marginTop: '20px' }}>
         {roles.map((role: string) => (
           <Link key={role} href={`/dashboard/${role}`} style={{ textDecoration: 'none' }}>
-            <div style={{ padding: '15px', border: '1px solid #ddd', borderRadius: '8px', background: 'white' }}>
-              {role.replace(/_/g, ' ')}
+            <div style={{ padding: '20px', background: 'white', border: '1px solid #ddd', borderRadius: '8px', cursor: 'pointer' }}>
+              <p style={{ fontWeight: 'bold', color: '#1d4ed8' }}>{role.replace(/_/g, ' ')} Console</p>
             </div>
           </Link>
         ))}
