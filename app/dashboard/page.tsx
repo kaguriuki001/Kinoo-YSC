@@ -1,21 +1,40 @@
 "use client";
-import { useSession } from "next-auth/react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 
-export default function DashboardLanding() {
-  const { data: session } = useSession();
-  if (!session?.user) return null;
-  const roles = (session.user as any)?.roles || [];
-  const name = (session.user as any)?.name || "User";
+export default function Dashboard() {
+  const [session, setSession] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch("/api/auth/session")
+      .then(res => res.json())
+      .then(data => {
+        setSession(data);
+        setLoading(false);
+      })
+      .catch(() => setLoading(false));
+  }, []);
+
+  if (loading) return <div style={{ padding: '20px' }}>Loading...</div>;
+  if (!session?.user) {
+    if (typeof window !== "undefined") window.location.href = "/";
+    return null;
+  }
+
+  const roles = session.user.roles || [];
+  const name = session.user.name || "User";
 
   return (
-    <div>
-      <h1 className="text-3xl font-bold mb-2">Welcome, {name}!</h1>
-      <p className="text-gray-500 mb-6">Select a console:</p>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+    <div style={{ padding: '20px' }}>
+      <h1 style={{ fontSize: '24px', marginBottom: '10px' }}>Welcome, {name}!</h1>
+      <p style={{ color: '#666', marginBottom: '20px' }}>Select a console:</p>
+      <div style={{ display: 'grid', gap: '10px' }}>
         {roles.map((role: string) => (
-          <Link key={role} href={`/dashboard/${role}`} className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-lg hover:shadow-xl transition">
-            <h2 className="text-xl font-semibold text-blue-700 dark:text-blue-400 capitalize">{role.replace(/_/g, ' ')}</h2>
+          <Link key={role} href={`/dashboard/${role}`} style={{ textDecoration: 'none' }}>
+            <div style={{ padding: '15px', border: '1px solid #ddd', borderRadius: '8px', background: 'white' }}>
+              {role.replace(/_/g, ' ')}
+            </div>
           </Link>
         ))}
       </div>

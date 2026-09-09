@@ -1,43 +1,45 @@
 "use client";
-import { useSession, signOut } from "next-auth/react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
-import { useRouter, usePathname } from "next/navigation";
-import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
-  const { data: session, status } = useSession();
+  const [session, setSession] = useState<any>(null);
   const router = useRouter();
-  const pathname = usePathname();
 
   useEffect(() => {
-    if (status === "unauthenticated") router.push("/");
-  }, [status, router]);
+    fetch("/api/auth/session")
+      .then(res => res.json())
+      .then(data => {
+        if (!data?.user) router.push("/");
+        else setSession(data);
+      });
+  }, []);
 
-  if (status === "loading") return <div className="p-8 text-center">Loading...</div>;
-  if (!session?.user) return null;
+  if (!session?.user) return <div style={{ padding: '20px' }}>Loading...</div>;
 
-  const roles = (session.user as any)?.roles || [];
-  const name = (session.user as any)?.name || "User";
+  const roles = session.user.roles || [];
 
   return (
-    <div className="flex min-h-screen bg-gray-100 dark:bg-gray-950">
-      <aside className="w-64 bg-gray-900 text-white flex flex-col">
-        <div className="p-4 border-b border-gray-700">
-          <h2 className="text-xl font-bold">Kinoo YSC</h2>
-          <p className="text-sm text-gray-400 mt-1">{name}</p>
-        </div>
-        <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
+    <div style={{ display: 'flex', minHeight: '100vh', background: '#f5f5f5' }}>
+      <aside style={{ width: '250px', background: '#1a1a2e', color: 'white', padding: '20px', minHeight: '100vh' }}>
+        <h2 style={{ marginBottom: '20px' }}>Kinoo YSC</h2>
+        <p style={{ color: '#aaa', marginBottom: '20px' }}>{session.user.name}</p>
+        <nav style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
           {roles.map((role: string) => (
-            <Link key={role} href={`/dashboard/${role}`} className={`block p-3 rounded-lg transition ${pathname.startsWith(`/dashboard/${role}`) ? 'bg-blue-600 text-white' : 'hover:bg-gray-800 text-gray-300'}`}>
+            <Link key={role} href={`/dashboard/${role}`} style={{ padding: '10px', color: 'white', textDecoration: 'none', borderRadius: '5px', background: '#16213e' }}>
               {role.replace(/_/g, ' ')}
             </Link>
           ))}
         </nav>
-        <button onClick={() => signOut({ callbackUrl: "/" })} className="w-full p-3 bg-red-600 hover:bg-red-700 text-white font-semibold">
+        <button onClick={async () => {
+          await fetch("/api/auth/signout", { method: "POST" });
+          window.location.href = "/";
+        }} style={{ width: '100%', padding: '10px', background: '#e74c3c', color: 'white', border: 'none', borderRadius: '5px', marginTop: '20px', cursor: 'pointer' }}>
           Sign Out
         </button>
       </aside>
-      <main className="flex-1 p-6 overflow-auto">{children}</main>
+      <main style={{ flex: 1, padding: '20px' }}>{children}</main>
     </div>
   );
 }
