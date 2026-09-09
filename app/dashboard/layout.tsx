@@ -12,16 +12,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   useEffect(() => {
     setDarkMode(localStorage.getItem('kinoo_theme') === 'dark');
-    // Always fetch fresh session - never use cached localStorage
-    fetch("/api/auth/session", { credentials: "include", cache: "no-store" })
-      .then(r => r.json())
-      .then(d => {
-        if (d?.user) {
-          setUser(d.user);
-        } else {
-          window.location.href = "/";
-        }
-      })
+    // Always fetch fresh session - never use cached localStoragefetch("/api/auth/session", { 
+  credentials: "include", 
+  cache: "no-store",
+  headers: { "Accept": "application/json" }
+})
       .catch(() => {
         window.location.href = "/";
       });
