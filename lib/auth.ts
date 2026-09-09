@@ -1,23 +1,23 @@
 import NextAuth from "next-auth";
-import Credentials from "next-auth/providers/credentials";
+import CredentialsProvider from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
 
-export const { handlers, signIn, signOut, auth } = NextAuth({
+export const authOptions: any = {
   providers: [
-    Credentials({
+    CredentialsProvider({
       name: "phone",
       credentials: {
         phone: { label: "Phone", type: "text" },
         password: { label: "Password", type: "password" }
       },
-      async authorize(credentials) {
+      async authorize(credentials: any) {
         try {
           const { connectDB } = await import("@/lib/db");
           const User = (await import("@/models/User")).default;
           await connectDB();
           const user = await User.findOne({ phone: credentials.phone });
           if (!user) return null;
-          const isValid = await bcrypt.compare(credentials.password as string, user.passwordHash);
+          const isValid = await bcrypt.compare(credentials.password, user.passwordHash);
           if (!isValid) return null;
           return { 
             id: String(user._id), 
@@ -33,20 +33,9 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   ],
   secret: process.env.NEXTAUTH_SECRET || "kinoo-ysc-secret-key-2026",
   trustHost: true,
-  session: {
-    strategy: "jwt",
-    maxAge: 30 * 24 * 60 * 60,
-  },
-  cookies: {
-    sessionToken: {
-      name: "next-auth.session-token",
-      options: {
-        httpOnly: true,
-        sameSite: "lax",
-        path: "/",
-        secure: true,
-      },
-    },
-  },
+  session: { strategy: "jwt" },
   pages: { signIn: "/" }
-});
+};
+
+const handler = NextAuth(authOptions);
+export { handler as GET, handler as POST };
