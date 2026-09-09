@@ -6,9 +6,14 @@ export default function SecretaryPage() {
   const [activeTab, setActiveTab] = useState("approvals");
   const [users, setUsers] = useState<any[]>([]);
   const [pending, setPending] = useState<any[]>([]);
-  const [minutes, setMinutes] = useState("");
+  const [minutes, setMinutes] = useState<any[]>([]);
+  const [newMinute, setNewMinute] = useState("");
+  const [message, setMessage] = useState("");
 
-  useEffect(() => { fetchUsers(); }, []);
+  useEffect(() => {
+    fetchUsers();
+    fetchMinutes();
+  }, []);
 
   const fetchUsers = async () => {
     const res = await fetch("/api/users");
@@ -19,16 +24,36 @@ export default function SecretaryPage() {
     }
   };
 
+  const fetchMinutes = async () => {
+    const res = await fetch("/api/minutes");
+    const data = await res.json();
+    if (Array.isArray(data)) setMinutes(data);
+  };
+
   const approve = async (id: string) => {
     await fetch("/api/assign-role", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ userId: id, role: 'member' }) });
     toast.success("Member approved!");
     fetchUsers();
   };
 
-  const reject = async (id: string) => {
-    await fetch("/api/users", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ userId: id }) });
-    toast.success("Member rejected");
-    fetchUsers();
+  const saveMinute = async () => {
+    if (!newMinute.trim()) { toast.error("Enter minutes content"); return; }
+    const res = await fetch("/api/minutes", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ content: newMinute, uploadedBy: "system" })
+    });
+    if (res.ok) {
+      toast.success("Minutes saved!");
+      setNewMinute("");
+      fetchMinutes();
+    }
+  };
+
+  const sendMessage = async () => {
+    if (!message.trim()) { toast.error("Enter message"); return; }
+    toast.success("Message sent to all members!");
+    setMessage("");
   };
 
   const tabs = ["approvals", "members", "minutes", "communications"];
@@ -56,10 +81,7 @@ export default function SecretaryPage() {
                 <p style={{ color: '#666', fontSize: '14px' }}>{u.phone}</p>
                 <p style={{ color: '#999', fontSize: '12px' }}>ID: {u.idNumber || 'N/A'}</p>
               </div>
-              <div style={{ display: 'flex', gap: '10px' }}>
-                <button onClick={() => approve(u._id)} style={{ background: '#22c55e', color: 'white', border: 'none', padding: '8px 16px', borderRadius: '6px', cursor: 'pointer' }}>Approve</button>
-                <button onClick={() => reject(u._id)} style={{ background: '#ef4444', color: 'white', border: 'none', padding: '8px 16px', borderRadius: '6px', cursor: 'pointer' }}>Reject</button>
-              </div>
+              <button onClick={() => approve(u._id)} style={{ background: '#22c55e', color: 'white', border: 'none', padding: '8px 16px', borderRadius: '6px', cursor: 'pointer' }}>Approve</button>
             </div>
           ))}
         </div>
@@ -69,14 +91,12 @@ export default function SecretaryPage() {
         <div style={{ background: 'white', padding: '20px', borderRadius: '12px', border: '1px solid #e5e7eb' }}>
           <h2 style={{ marginBottom: '15px' }}>Active Members ({users.length})</h2>
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-            <thead>
-              <tr>
-                <th style={{ textAlign: 'left', padding: '10px', borderBottom: '2px solid #e5e7eb' }}>Name</th>
-                <th style={{ textAlign: 'left', padding: '10px', borderBottom: '2px solid #e5e7eb' }}>Phone</th>
-                <th style={{ textAlign: 'left', padding: '10px', borderBottom: '2px solid #e5e7eb' }}>Roles</th>
-                <th style={{ textAlign: 'left', padding: '10px', borderBottom: '2px solid #e5e7eb' }}>Joined</th>
-              </tr>
-            </thead>
+            <thead><tr>
+              <th style={{ textAlign: 'left', padding: '10px', borderBottom: '2px solid #e5e7eb' }}>Name</th>
+              <th style={{ textAlign: 'left', padding: '10px', borderBottom: '2px solid #e5e7eb' }}>Phone</th>
+              <th style={{ textAlign: 'left', padding: '10px', borderBottom: '2px solid #e5e7eb' }}>Roles</th>
+              <th style={{ textAlign: 'left', padding: '10px', borderBottom: '2px solid #e5e7eb' }}>Joined</th>
+            </tr></thead>
             <tbody>
               {users.map((u: any) => (
                 <tr key={u._id}>
@@ -94,16 +114,24 @@ export default function SecretaryPage() {
       {activeTab === "minutes" && (
         <div style={{ background: 'white', padding: '20px', borderRadius: '12px', border: '1px solid #e5e7eb' }}>
           <h2 style={{ marginBottom: '15px' }}>Meeting Minutes</h2>
-          <textarea value={minutes} onChange={(e) => setMinutes(e.target.value)} placeholder="Enter minutes here..." style={{ width: '100%', minHeight: '150px', padding: '15px', borderRadius: '8px', border: '1px solid #ddd' }} />
-          <button onClick={() => toast.success("Minutes saved!")} style={{ marginTop: '10px', background: '#1d4ed8', color: 'white', border: 'none', padding: '10px 20px', borderRadius: '8px', cursor: 'pointer' }}>Save Minutes</button>
+          <textarea value={newMinute} onChange={(e) => setNewMinute(e.target.value)} placeholder="Enter minutes content..." style={{ width: '100%', minHeight: '150px', padding: '15px', borderRadius: '8px', border: '1px solid #ddd' }} />
+          <button onClick={saveMinute} style={{ marginTop: '10px', background: '#1d4ed8', color: 'white', border: 'none', padding: '10px 20px', borderRadius: '8px', cursor: 'pointer' }}>Save Minutes</button>
+          
+          <h3 style={{ margin: '20px 0 10px' }}>Previous Minutes ({minutes.length})</h3>
+          {minutes.map((m: any) => (
+            <div key={m._id} style={{ padding: '15px', background: '#f9fafb', borderRadius: '8px', marginBottom: '10px', borderLeft: '4px solid #1d4ed8' }}>
+              <p style={{ fontSize: '12px', color: '#999' }}>{new Date(m.date).toLocaleDateString()}</p>
+              <p>{m.content}</p>
+            </div>
+          ))}
         </div>
       )}
 
       {activeTab === "communications" && (
         <div style={{ background: 'white', padding: '20px', borderRadius: '12px', border: '1px solid #e5e7eb' }}>
           <h2 style={{ marginBottom: '15px' }}>Send Communication</h2>
-          <textarea placeholder="Type message to all members..." style={{ width: '100%', minHeight: '100px', padding: '15px', borderRadius: '8px', border: '1px solid #ddd' }} />
-          <button onClick={() => toast.success("Message sent!")} style={{ marginTop: '10px', background: '#16a34a', color: 'white', border: 'none', padding: '10px 20px', borderRadius: '8px', cursor: 'pointer' }}>Send to All</button>
+          <textarea value={message} onChange={(e) => setMessage(e.target.value)} placeholder="Type message to all members..." style={{ width: '100%', minHeight: '100px', padding: '15px', borderRadius: '8px', border: '1px solid #ddd' }} />
+          <button onClick={sendMessage} style={{ marginTop: '10px', background: '#16a34a', color: 'white', border: 'none', padding: '10px 20px', borderRadius: '8px', cursor: 'pointer' }}>Send to All Members</button>
         </div>
       )}
     </div>
