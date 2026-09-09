@@ -12,15 +12,19 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   useEffect(() => {
     setDarkMode(localStorage.getItem('kinoo_theme') === 'dark');
-    fetch("/api/auth/session", { credentials: "include" })
+    // Always fetch fresh session - never use cached localStorage
+    fetch("/api/auth/session", { credentials: "include", cache: "no-store" })
       .then(r => r.json())
       .then(d => {
         if (d?.user) {
           setUser(d.user);
-          localStorage.setItem('kinoo_user', JSON.stringify(d.user));
+        } else {
+          window.location.href = "/";
         }
       })
-      .catch(() => {});
+      .catch(() => {
+        window.location.href = "/";
+      });
   }, []);
 
   useEffect(() => {
@@ -52,23 +56,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     { href: '/dashboard/settings', label: 'Settings', icon: '⚙️', role: 'settings' },
   ];
 
+  // Admin sees ALL. Others see their roles + Dashboard.
   const visibleConsoles = allConsoles.filter(c => 
     c.alwaysShow || isAdmin || (c.role && roles.includes(c.role))
   );
 
   const currentIndex = visibleConsoles.findIndex(c => pathname === c.href);
-  
-  const goBack = () => {
-    if (currentIndex > 0) {
-      router.push(visibleConsoles[currentIndex - 1].href);
-    }
-  };
-
-  const goForward = () => {
-    if (currentIndex >= 0 && currentIndex < visibleConsoles.length - 1) {
-      router.push(visibleConsoles[currentIndex + 1].href);
-    }
-  };
+  const goBack = () => { if (currentIndex > 0) router.push(visibleConsoles[currentIndex - 1].href); };
+  const goForward = () => { if (currentIndex >= 0 && currentIndex < visibleConsoles.length - 1) router.push(visibleConsoles[currentIndex + 1].href); };
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh', background: darkMode ? '#0f172a' : '#f1f5f9' }}>
@@ -97,34 +92,18 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           <button onClick={() => setDarkMode(!darkMode)} style={{ width: '100%', padding: '10px', background: darkMode ? '#334155' : '#e2e8f0', color: textColor, border: 'none', borderRadius: '8px', cursor: 'pointer', marginBottom: '10px', fontSize: '14px' }}>
             {darkMode ? '☀️ Light' : '🌙 Dark'}
           </button>
-          <button onClick={async () => { await fetch("/api/auth/signout", { method: "POST" }); localStorage.removeItem('kinoo_user'); window.location.href = "/"; }} style={{ width: '100%', padding: '10px', background: '#dc2626', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '14px' }}>
+          <button onClick={async () => { await fetch("/api/auth/signout", { method: "POST" }); window.location.href = "/"; }} style={{ width: '100%', padding: '10px', background: '#dc2626', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '14px' }}>
             {sidebarOpen ? 'Sign Out' : '🚪'}
           </button>
         </div>
       </aside>
 
       <main className="main-content" style={{ flex: 1, padding: '20px', overflowX: 'hidden' }}>
-        {/* Back/Forward Navigation */}
         <div style={{ display: 'flex', gap: '10px', marginBottom: '20px', alignItems: 'center' }}>
-          <button onClick={goBack} disabled={currentIndex <= 0} style={{
-            padding: '10px 20px', border: `1px solid ${borderColor}`, borderRadius: '8px',
-            background: bgColor, color: textColor, cursor: currentIndex <= 0 ? 'not-allowed' : 'pointer',
-            opacity: currentIndex <= 0 ? 0.4 : 1, fontSize: '16px',
-          }}>
-            ← Back
-          </button>
-          <button onClick={goForward} disabled={currentIndex >= visibleConsoles.length - 1} style={{
-            padding: '10px 20px', border: `1px solid ${borderColor}`, borderRadius: '8px',
-            background: bgColor, color: textColor, cursor: currentIndex >= visibleConsoles.length - 1 ? 'not-allowed' : 'pointer',
-            opacity: currentIndex >= visibleConsoles.length - 1 ? 0.4 : 1, fontSize: '16px',
-          }}>
-            Forward →
-          </button>
-          <span style={{ fontSize: '13px', opacity: '0.6', marginLeft: '10px' }}>
-            {currentIndex + 1} / {visibleConsoles.length}
-          </span>
+          <button onClick={goBack} disabled={currentIndex <= 0} style={{ padding: '10px 20px', border: `1px solid ${borderColor}`, borderRadius: '8px', background: bgColor, color: textColor, cursor: currentIndex <= 0 ? 'not-allowed' : 'pointer', opacity: currentIndex <= 0 ? 0.4 : 1, fontSize: '16px' }}>← Back</button>
+          <button onClick={goForward} disabled={currentIndex >= visibleConsoles.length - 1} style={{ padding: '10px 20px', border: `1px solid ${borderColor}`, borderRadius: '8px', background: bgColor, color: textColor, cursor: currentIndex >= visibleConsoles.length - 1 ? 'not-allowed' : 'pointer', opacity: currentIndex >= visibleConsoles.length - 1 ? 0.4 : 1, fontSize: '16px' }}>Forward →</button>
+          <span style={{ fontSize: '13px', opacity: '0.6', marginLeft: '10px' }}>{currentIndex + 1} / {visibleConsoles.length}</span>
         </div>
-
         {children}
       </main>
     </div>
