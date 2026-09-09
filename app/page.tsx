@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 import { signIn } from "next-auth/react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { toast } from "sonner";
 
@@ -8,6 +9,7 @@ export default function Login() {
   const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const router = useRouter();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -17,18 +19,19 @@ export default function Login() {
     if (formattedPhone.startsWith("0")) formattedPhone = "254" + formattedPhone.substring(1);
     if (formattedPhone.startsWith("7")) formattedPhone = "254" + formattedPhone;
 
-    const res = await signIn("credentials", { 
-      phone: formattedPhone, 
-      password, 
-      redirect: false 
+    const result = await signIn("credentials", {
+      phone: formattedPhone,
+      password,
+      redirect: false,
     });
 
-    if (res?.ok) {
-      toast.success("Welcome!");
-      window.location.href = "/dashboard";
-    } else {
-      toast.error("Invalid credentials");
+    if (result?.error) {
+      toast.error("Invalid phone or password");
       setLoading(false);
+    } else {
+      toast.success("Welcome!");
+      router.push("/dashboard");
+      router.refresh();
     }
   };
 
