@@ -1,6 +1,5 @@
 import "./globals.css";
-import { Providers } from "./providers";
-import { Toaster } from "react-hot-toast";
+import { Toaster } from "sonner";
 
 export const metadata = {
   title: "Kinoo YSC",
@@ -9,12 +8,10 @@ export const metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <body>
-        <Providers>
-          {children}
-          <Toaster position="top-center" />
-        </Providers>
+        {children}
+        <Toaster position="top-center" richColors />
       </body>
     </html>
   );
