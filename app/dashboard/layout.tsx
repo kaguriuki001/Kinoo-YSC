@@ -1,13 +1,14 @@
 "use client";
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<any>(null);
   const [darkMode, setDarkMode] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const pathname = usePathname();
+  const router = useRouter();
 
   useEffect(() => {
     setDarkMode(localStorage.getItem('kinoo_theme') === 'dark');
@@ -34,24 +35,44 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const bgColor = darkMode ? '#1e293b' : '#ffffff';
   const borderColor = darkMode ? '#334155' : '#e2e8f0';
 
-  // ALL consoles listed explicitly
+  const roles = user.roles || ['member'];
+  const isAdmin = roles.includes('father') || roles.includes('moderator');
+
   const allConsoles = [
-    { href: '/dashboard', label: 'Dashboard', icon: '🏠' },
-    { href: '/dashboard/father', label: 'Father', icon: '👑' },
-    { href: '/dashboard/moderator', label: 'Moderator', icon: '🛡️' },
-    { href: '/dashboard/secretary', label: 'Secretary', icon: '📋' },
-    { href: '/dashboard/treasurer', label: 'Treasurer', icon: '💰' },
-    { href: '/dashboard/organizing-secretary', label: 'Organising Sec', icon: '🚌' },
-    { href: '/dashboard/vice-secretary', label: 'Vice Secretary', icon: '🧠' },
-    { href: '/dashboard/liturgist', label: 'Liturgist', icon: '✝️' },
-    { href: '/dashboard/vice-moderator', label: 'Vice Moderator', icon: '⚖️' },
-    { href: '/dashboard/patron-matron', label: 'Patron/Matron', icon: '👵' },
-    { href: '/dashboard/settings', label: 'Settings', icon: '⚙️' },
+    { href: '/dashboard', label: 'Dashboard', icon: '🏠', alwaysShow: true },
+    { href: '/dashboard/father', label: 'Father', icon: '👑', role: 'father' },
+    { href: '/dashboard/moderator', label: 'Moderator', icon: '🛡️', role: 'moderator' },
+    { href: '/dashboard/secretary', label: 'Secretary', icon: '📋', role: 'secretary' },
+    { href: '/dashboard/treasurer', label: 'Treasurer', icon: '💰', role: 'treasurer' },
+    { href: '/dashboard/organizing-secretary', label: 'Organising Sec', icon: '🚌', role: 'organizing_secretary' },
+    { href: '/dashboard/vice-secretary', label: 'Vice Secretary', icon: '🧠', role: 'vice_secretary' },
+    { href: '/dashboard/liturgist', label: 'Liturgist', icon: '✝️', role: 'liturgist' },
+    { href: '/dashboard/vice-moderator', label: 'Vice Moderator', icon: '⚖️', role: 'vice_moderator' },
+    { href: '/dashboard/patron-matron', label: 'Patron/Matron', icon: '👵', role: 'patron_matron' },
+    { href: '/dashboard/settings', label: 'Settings', icon: '⚙️', role: 'settings' },
   ];
+
+  const visibleConsoles = allConsoles.filter(c => 
+    c.alwaysShow || isAdmin || (c.role && roles.includes(c.role))
+  );
+
+  const currentIndex = visibleConsoles.findIndex(c => pathname === c.href);
+  
+  const goBack = () => {
+    if (currentIndex > 0) {
+      router.push(visibleConsoles[currentIndex - 1].href);
+    }
+  };
+
+  const goForward = () => {
+    if (currentIndex >= 0 && currentIndex < visibleConsoles.length - 1) {
+      router.push(visibleConsoles[currentIndex + 1].href);
+    }
+  };
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh', background: darkMode ? '#0f172a' : '#f1f5f9' }}>
-      <aside style={{
+      <aside className="sidebar" style={{
         width: sidebarOpen ? '230px' : '60px', background: bgColor, color: textColor,
         padding: '15px', transition: 'width 0.3s', position: 'sticky', top: 0,
         height: '100vh', overflowY: 'auto', borderRight: `1px solid ${borderColor}`,
@@ -63,13 +84,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </div>
         {sidebarOpen && <p style={{ opacity: '0.7', fontSize: '13px', marginBottom: '20px' }}>{user.name || 'User'}</p>}
         <nav style={{ display: 'flex', flexDirection: 'column', gap: '3px', flex: 1 }}>
-          {allConsoles.map((item) => (
-            <Link key={item.href} href={item.href} style={{
-              padding: '10px 12px', color: pathname === item.href ? '#fff' : textColor,
-              textDecoration: 'none', borderRadius: '8px',
+          {visibleConsoles.map((item) => (
+            <Link key={item.href} href={item.href} className="sidebar-link" style={{
+              color: pathname === item.href ? '#fff' : textColor,
               background: pathname === item.href ? '#3b82f6' : 'transparent',
-              fontSize: '13px', display: 'flex', alignItems: 'center', gap: '8px',
-              whiteSpace: 'nowrap', overflow: 'hidden',
             }}>
               <span>{item.icon}</span>{sidebarOpen && <span>{item.label}</span>}
             </Link>
@@ -84,7 +102,31 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </button>
         </div>
       </aside>
-      <main style={{ flex: 1, padding: '20px', overflowX: 'hidden' }}>{children}</main>
+
+      <main className="main-content" style={{ flex: 1, padding: '20px', overflowX: 'hidden' }}>
+        {/* Back/Forward Navigation */}
+        <div style={{ display: 'flex', gap: '10px', marginBottom: '20px', alignItems: 'center' }}>
+          <button onClick={goBack} disabled={currentIndex <= 0} style={{
+            padding: '10px 20px', border: `1px solid ${borderColor}`, borderRadius: '8px',
+            background: bgColor, color: textColor, cursor: currentIndex <= 0 ? 'not-allowed' : 'pointer',
+            opacity: currentIndex <= 0 ? 0.4 : 1, fontSize: '16px',
+          }}>
+            ← Back
+          </button>
+          <button onClick={goForward} disabled={currentIndex >= visibleConsoles.length - 1} style={{
+            padding: '10px 20px', border: `1px solid ${borderColor}`, borderRadius: '8px',
+            background: bgColor, color: textColor, cursor: currentIndex >= visibleConsoles.length - 1 ? 'not-allowed' : 'pointer',
+            opacity: currentIndex >= visibleConsoles.length - 1 ? 0.4 : 1, fontSize: '16px',
+          }}>
+            Forward →
+          </button>
+          <span style={{ fontSize: '13px', opacity: '0.6', marginLeft: '10px' }}>
+            {currentIndex + 1} / {visibleConsoles.length}
+          </span>
+        </div>
+
+        {children}
+      </main>
     </div>
   );
 }
