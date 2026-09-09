@@ -7,7 +7,7 @@ export async function middleware(req: NextRequest) {
 
   const token = await getToken({ 
     req, 
-    secret: process.env.NEXTAUTH_SECRET 
+    secret: process.env.NEXTAUTH_SECRET || "kinoo-ysc-secret-key-2026"
   });
 
   const isLoggedIn = !!token;
@@ -15,24 +15,6 @@ export async function middleware(req: NextRequest) {
 
   if (pathname.startsWith("/dashboard") && !isLoggedIn) {
     return NextResponse.redirect(new URL("/", req.url));
-  }
-
-  const rolePaths: Record<string, string> = {
-    member: '/dashboard/member',
-    secretary: '/dashboard/secretary',
-    treasurer: '/dashboard/treasurer',
-    organizing_secretary: '/dashboard/organizing-secretary',
-    vice_secretary: '/dashboard/vice-secretary',
-    liturgist: '/dashboard/liturgist',
-    vice_moderator: '/dashboard/vice-moderator',
-    moderator: '/dashboard/moderator',
-    patron_matron: '/dashboard/patron-matron',
-    father: '/dashboard/father'
-  };
-
-  const allowed = userRoles.some(role => pathname.startsWith(rolePaths[role]));
-  if (!allowed && !userRoles.includes('father')) {
-    return NextResponse.redirect(new URL("/dashboard", req.url));
   }
 
   return NextResponse.next();

@@ -32,25 +32,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       }
     })
   ],
-  callbacks: {
-    async jwt({ token, user }: any) {
-      if (user) {
-        token.id = String(user.id);
-        token.roles = user.roles || [];
-        token.phone = user.phone || "";
-      }
-      return token;
-    },
-    async session({ session, token }: any) {
-      if (session.user) {
-        session.user.id = token.id as string;
-        session.user.roles = token.roles as string[];
-        session.user.phone = token.phone as string;
-      }
-      return session;
-    }
-  },
-  pages: { signIn: "/" },
   secret: process.env.NEXTAUTH_SECRET || "kinoo-ysc-secret-key-2026",
-  trustHost: true
+  trustHost: true,
+  pages: { signIn: "/" }
 });
