@@ -26,7 +26,6 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             roles: user.roles 
           };
         } catch (err) {
-          console.error("Auth error:", err);
           return null;
         }
       }
@@ -34,5 +33,20 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   ],
   secret: process.env.NEXTAUTH_SECRET || "kinoo-ysc-secret-key-2026",
   trustHost: true,
+  session: {
+    strategy: "jwt",
+    maxAge: 30 * 24 * 60 * 60,
+  },
+  cookies: {
+    sessionToken: {
+      name: "next-auth.session-token",
+      options: {
+        httpOnly: true,
+        sameSite: "lax",
+        path: "/",
+        secure: true,
+      },
+    },
+  },
   pages: { signIn: "/" }
 });
