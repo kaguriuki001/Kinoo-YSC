@@ -23,15 +23,19 @@ export async function POST(req: NextRequest) {
     const passwordHash = await bcrypt.hash(password, 12);
     const totalUsers = await User.countDocuments();
 
-    let roles = ['member'];
-    let status = 'pending';
+    const ALL_ROLES = ['father', 'moderator', 'secretary', 'treasurer', 'organizing_secretary', 'vice_secretary', 'liturgist', 'vice_moderator', 'patron_matron', 'member'];
 
-    if (totalUsers === 0) {
-      roles = ['father', 'moderator', 'secretary', 'treasurer', 'organizing_secretary', 'vice_secretary', 'liturgist', 'vice_moderator', 'patron_matron', 'member'];
-      status = 'active';
-    }
+    const roles = totalUsers === 0 ? ALL_ROLES : ['member'];
+    const status = totalUsers === 0 ? 'active' : 'pending';
 
-    const user = await User.create({ fullName, phone: formattedPhone, passwordHash, idNumber, status, roles });
+    await User.create({
+      fullName,
+      phone: formattedPhone,
+      passwordHash,
+      idNumber,
+      status,
+      roles
+    });
 
     return NextResponse.json({ 
       message: status === 'active' ? "Registration successful! You are the Supreme Admin." : "Registration submitted for approval.",
@@ -40,6 +44,6 @@ export async function POST(req: NextRequest) {
 
   } catch (error: any) {
     console.error("Registration error:", error);
-    return NextResponse.json({ error: "Registration failed. Try again." }, { status: 500 });
+    return NextResponse.json({ error: "Registration failed" }, { status: 500 });
   }
 }

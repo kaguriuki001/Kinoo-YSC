@@ -13,6 +13,7 @@ const ROLE_ICONS: Record<string, string> = {
   vice_moderator: "⚖️",
   patron_matron: "👵",
   member: "👤",
+  settings: "⚙️",
 };
 
 const ROLE_COLORS: Record<string, string> = {
@@ -26,6 +27,7 @@ const ROLE_COLORS: Record<string, string> = {
   vice_moderator: "#d97706",
   patron_matron: "#c026d3",
   member: "#2563eb",
+  settings: "#64748b",
 };
 
 export default function Dashboard() {
@@ -43,38 +45,24 @@ export default function Dashboard() {
   if (!user) return <div style={{ padding: '40px', textAlign: 'center' }}>Loading...</div>;
 
   const roles = user.roles && user.roles.length > 0 ? user.roles : ['member'];
+  const allItems = [...roles, 'settings'];
 
   return (
     <div style={{ maxWidth: '500px', margin: '0 auto', padding: '20px' }}>
-      {/* Safaricom-style header */}
       <div style={{ background: 'linear-gradient(135deg, #1a1a2e, #16213e)', color: 'white', padding: '20px', borderRadius: '12px 12px 0 0', textAlign: 'center' }}>
         <h1 style={{ fontSize: '22px', fontWeight: 'bold' }}>Kinoo YSC</h1>
         <p style={{ opacity: '0.8', fontSize: '14px' }}>Welcome, {user.name}</p>
       </div>
 
-      {/* Menu list - Safaricom style */}
       <div style={{ background: 'white', borderRadius: '0 0 12px 12px', overflow: 'hidden' }}>
-        {roles.map((role: string, index: number) => (
+        {allItems.map((role: string, index: number) => (
           <Link key={role} href={`/dashboard/${role}`} style={{ textDecoration: 'none' }}>
             <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '15px',
-              padding: '16px 20px',
-              borderBottom: index < roles.length - 1 ? '1px solid #f0f0f0' : 'none',
-              background: 'white',
+              display: 'flex', alignItems: 'center', gap: '15px', padding: '16px 20px',
+              borderBottom: index < allItems.length - 1 ? '1px solid #f0f0f0' : 'none',
               cursor: 'pointer',
             }}>
-              <div style={{
-                width: '45px',
-                height: '45px',
-                borderRadius: '50%',
-                background: ROLE_COLORS[role] || '#2563eb',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: '22px',
-              }}>
+              <div style={{ width: '45px', height: '45px', borderRadius: '50%', background: ROLE_COLORS[role] || '#2563eb', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '22px' }}>
                 {ROLE_ICONS[role] || '👤'}
               </div>
               <div style={{ flex: 1 }}>
@@ -89,12 +77,6 @@ export default function Dashboard() {
             </div>
           </Link>
         ))}
-      </div>
-
-      {/* Safaricom-style footer */}
-      <div style={{ textAlign: 'center', marginTop: '20px', color: '#999', fontSize: '12px' }}>
-        <p>Kinoo Youth Sports Club</p>
-        <p>© 2026 All rights reserved</p>
       </div>
     </div>
   );
@@ -112,6 +94,7 @@ function getRoleDescription(role: string): string {
     vice_moderator: "Subcommittees",
     patron_matron: "Oversight & Approvals",
     member: "Member Access",
+    settings: "App Settings & Management",
   };
   return descriptions[role] || "Console Access";
 }
