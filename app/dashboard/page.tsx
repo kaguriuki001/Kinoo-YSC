@@ -16,10 +16,34 @@ export default function Dashboard() {
 
   useEffect(() => {
     setDarkMode(localStorage.getItem('kinoo_theme') === 'dark');
-    fetch("/api/auth/session").then(r => r.json()).then(d => { if (d?.user) setUser(d.user); else window.location.href = "/"; });
-    fetch("/api/users").then(r => r.json()).then(d => { if (Array.isArray(d)) { const active = d.filter((u: any) => u.status === 'active'); setMembers(active); setFilteredMembers(active); setStats(p => ({ ...p, members: active.length })); } });
-    fetch("/api/events").then(r => r.json()).then(d => { if (Array.isArray(d)) { setEvents(d); setStats(p => ({ ...p, events: d.length })); } });
-    fetch("/api/transactions").then(r => r.json()).then(d => { if (Array.isArray(d)) { const total = d.filter((t: any) => t.verified).reduce((s: number, t: any) => s + t.amount, 0); setStats(p => ({ ...p, transactions: d.length, balance: total })); } });
+    
+    const savedUser = localStorage.getItem('kinoo_user');
+    if (savedUser) {
+      try { setUser(JSON.parse(savedUser)); } catch (e) {}
+    }
+    
+    fetch("/api/auth/session", { credentials: "include" }).then(r => r.json()).then(d => {
+      if (d?.user) { setUser(d.user); localStorage.setItem('kinoo_user', JSON.stringify(d.user)); }
+    }).catch(() => {});
+
+    fetch("/api/users", { credentials: "include" }).then(r => r.json()).then(d => {
+      if (Array.isArray(d)) {
+        const active = d.filter((u: any) => u.status === 'active');
+        setMembers(active); setFilteredMembers(active);
+        setStats(p => ({ ...p, members: active.length }));
+      }
+    });
+
+    fetch("/api/events", { credentials: "include" }).then(r => r.json()).then(d => {
+      if (Array.isArray(d)) { setEvents(d); setStats(p => ({ ...p, events: d.length })); }
+    });
+
+    fetch("/api/transactions", { credentials: "include" }).then(r => r.json()).then(d => {
+      if (Array.isArray(d)) {
+        const total = d.filter((t: any) => t.verified).reduce((s: number, t: any) => s + t.amount, 0);
+        setStats(p => ({ ...p, transactions: d.length, balance: total }));
+      }
+    });
   }, []);
 
   useEffect(() => {
@@ -33,7 +57,7 @@ export default function Dashboard() {
     if (res.ok) { toast.success("M-Pesa prompt sent!"); setAmount(""); } else toast.error(data.error || "Failed");
   };
 
-  if (!user) return <div style={{ padding: '40px', textAlign: 'center' }}>Loading...</div>;
+  if (!user) return <div style={{ padding: '40px', textAlign: 'center', fontSize: '18px' }}>Loading...</div>;
 
   const tabs = [
     { id: 'overview', label: '📊 Overview' },
@@ -49,7 +73,7 @@ export default function Dashboard() {
   return (
     <div>
       <div style={{ background: 'linear-gradient(135deg, #1a1a2e, #16213e)', color: 'white', padding: '25px', borderRadius: '16px', marginBottom: '20px' }}>
-        <h1 style={{ fontSize: '26px', marginBottom: '5px' }}>Welcome, {user.name}!</h1>
+        <h1 style={{ fontSize: '26px', marginBottom: '5px' }}>Welcome, {user.name || 'User'}!</h1>
         <p style={{ opacity: '0.8' }}>Kinoo Youth Sports Club</p>
       </div>
 
@@ -73,9 +97,10 @@ export default function Dashboard() {
         <div style={cardStyle}>
           <h3 style={{ marginBottom: '15px' }}>Quick Actions</h3>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '10px' }}>
-            {[{ tab: 'events', label: '📅 View Events' }, { tab: 'giving', label: '💸 Contribute' }, { tab: 'members', label: '👥 Members List' }, { tab: 'attendance', label: '✅ Attendance' }].map(a => (
-              <button key={a.tab} onClick={() => setActiveTab(a.tab)} style={{ padding: '20px', background: darkMode ? '#334155' : '#f8fafc', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '14px' }}>{a.label}</button>
-            ))}
+            <button onClick={() => setActiveTab('events')} style={{ padding: '20px', background: darkMode ? '#334155' : '#f8fafc', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '14px' }}>📅 Events</button>
+            <button onClick={() => setActiveTab('giving')} style={{ padding: '20px', background: darkMode ? '#334155' : '#f8fafc', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '14px' }}>💸 Contribute</button>
+            <button onClick={() => setActiveTab('members')} style={{ padding: '20px', background: darkMode ? '#334155' : '#f8fafc', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '14px' }}>👥 Members</button>
+            <button onClick={() => setActiveTab('attendance')} style={{ padding: '20px', background: darkMode ? '#334155' : '#f8fafc', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '14px' }}>✅ Attendance</button>
           </div>
         </div>
       )}

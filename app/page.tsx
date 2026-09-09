@@ -25,13 +25,11 @@ export default function Login() {
       redirect: false,
     });
 
-    if (result?.error) {
-      toast.error("Invalid phone or password");
-      setLoading(false);
-    } else {
-      toast.success("Welcome!");
-      window.location.href = "/dashboard";
-    }
+    if (result?.ok) {
+  toast.success("Welcome!");
+  localStorage.setItem('kinoo_user', JSON.stringify({ name: phone, roles: ['member'] }));
+  window.location.href = "/dashboard";
+}
   };
 
   return (
