@@ -19,9 +19,14 @@ export default function Login() {
     if (formattedPhone.startsWith("0")) formattedPhone = "254" + formattedPhone.substring(1);
     if (formattedPhone.startsWith("7")) formattedPhone = "254" + formattedPhone;
 
+    // Get CSRF token first
+    const csrfRes = await fetch("/api/auth/csrf");
+    const csrfData = await csrfRes.json();
+
     const result = await signIn("credentials", {
       phone: formattedPhone,
       password,
+      csrfToken: csrfData.csrfToken,
       redirect: false,
     });
 
