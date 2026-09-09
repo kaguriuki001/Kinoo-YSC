@@ -3,11 +3,13 @@ import { useState } from "react";
 import { signIn } from "next-auth/react";
 import Link from "next/link";
 import { toast } from "sonner";
+import { useRouter } from "next/navigation";
 
 export default function Login() {
   const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const router = useRouter();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -21,13 +23,19 @@ export default function Login() {
     if (formattedPhone.startsWith("0")) formattedPhone = "254" + formattedPhone.substring(1);
     if (formattedPhone.startsWith("7")) formattedPhone = "254" + formattedPhone;
 
-    const res = await signIn("credentials", { phone: formattedPhone, password, redirect: false });
+    const res = await signIn("credentials", { 
+      phone: formattedPhone, 
+      password, 
+      redirect: false 
+    });
+
     if (res?.error) {
-      toast.error("Invalid phone or password. Check credentials and try again.");
+      toast.error("Invalid phone or password");
       setLoading(false);
     } else {
-      toast.success("Welcome back!");
-      window.location.href = "/dashboard";
+      toast.success("Welcome to Kinoo YSC!");
+      router.push("/dashboard");
+      router.refresh();
     }
   };
 
@@ -45,43 +53,20 @@ export default function Login() {
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Phone Number</label>
-            <input
-              type="tel"
-              placeholder="e.g., 0712345678"
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              className="w-full p-3 border rounded-lg bg-white dark:bg-gray-800 dark:border-gray-600 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none transition"
-              required
-            />
+            <input type="tel" placeholder="e.g., 0712345678" value={phone} onChange={(e) => setPhone(e.target.value)} className="w-full p-3 border rounded-lg bg-white dark:bg-gray-800 dark:border-gray-600 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none" required />
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Password</label>
-            <input
-              type="password"
-              placeholder="Enter your password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full p-3 border rounded-lg bg-white dark:bg-gray-800 dark:border-gray-600 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none transition"
-              required
-            />
+            <input type="password" placeholder="Enter your password" value={password} onChange={(e) => setPassword(e.target.value)} className="w-full p-3 border rounded-lg bg-white dark:bg-gray-800 dark:border-gray-600 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none" required />
           </div>
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-lg transition disabled:opacity-50"
-          >
+          <button type="submit" disabled={loading} className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-lg transition disabled:opacity-50">
             {loading ? "Signing in..." : "Sign In"}
           </button>
         </form>
 
         <div className="text-center mt-6">
           <p className="text-gray-500 dark:text-gray-400 mb-3">Not a member yet?</p>
-          <Link
-            href="/register"
-            className="block w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-3 rounded-lg transition"
-          >
-            Register Now
-          </Link>
+          <Link href="/register" className="block w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-3 rounded-lg transition">Register Now</Link>
         </div>
       </div>
     </div>
