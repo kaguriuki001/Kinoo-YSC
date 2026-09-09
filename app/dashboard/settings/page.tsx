@@ -9,10 +9,11 @@ export default function SettingsPage() {
   const [reports, setReports] = useState<any>(null);
   const [auditLogs, setAuditLogs] = useState<any[]>([]);
   const [darkMode, setDarkMode] = useState(false);
+  const [csvData, setCsvData] = useState("");
 
   useEffect(() => {
     setDarkMode(localStorage.getItem('kinoo_theme') === 'dark');
-    fetch("/api/users", { credentials: "include" }).then(r => r.json()).then(d => { if (Array.isArray(d)) setUsers(d.filter((u: any) => u.status === 'active')); });
+    refreshUsers();
     fetch("/api/reports").then(r => r.json()).then(setReports).catch(() => {});
     fetch("/api/audit").then(r => r.json()).then(d => { if (Array.isArray(d)) setAuditLogs(d); }).catch(() => {});
   }, []);
@@ -21,14 +22,21 @@ export default function SettingsPage() {
   const bgColor = darkMode ? '#1e293b' : '#ffffff';
   const borderColor = darkMode ? '#334155' : '#e5e7eb';
   const cardStyle = { background: bgColor, padding: '20px', borderRadius: '12px', border: `1px solid ${borderColor}`, color: textColor };
+  const inputStyle = { width: '100%', padding: '10px', borderRadius: '8px', border: `1px solid ${borderColor}`, background: darkMode ? '#334155' : 'white', color: textColor, marginBottom: '10px', fontSize: '13px' };
 
   const allRoles = ['father', 'moderator', 'secretary', 'treasurer', 'organizing_secretary', 'vice_secretary', 'liturgist', 'vice_moderator', 'patron_matron', 'member'];
+
+  const refreshUsers = () => {
+    fetch("/api/users", { credentials: "include" }).then(r => r.json()).then(d => {
+      if (Array.isArray(d)) setUsers(d.filter((u: any) => u.status === 'active'));
+    });
+  };
 
   const assignRole = async (userId: string, role: string) => {
     await fetch("/api/assign-role", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ userId, role }) });
     toast.success(`Role assigned: ${role}`);
     await fetch("/api/audit", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "assign_role", performedBy: "admin", targetUser: userId, reason: role }) });
-    fetch("/api/users").then(r => r.json()).then(d => { if (Array.isArray(d)) setUsers(d.filter((u: any) => u.status === 'active')); });
+    refreshUsers();
   };
 
   const resetPass = async (userId: string) => {
@@ -41,6 +49,20 @@ export default function SettingsPage() {
     await fetch("/api/bulk", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: 'approve', userIds: selectedUsers }) });
     toast.success("Bulk approval done!");
     setSelectedUsers([]);
+    refreshUsers();
+  };
+
+  const importCSV = async () => {
+    if (!csvData.trim()) { toast.error("Paste CSV data first"); return; }
+    const res = await fetch("/api/import-csv", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ csvData }) });
+    const data = await res.json();
+    if (res.ok) {
+      toast.success(data.message);
+      setCsvData("");
+      refreshUsers();
+    } else {
+      toast.error(data.error || "Import failed");
+    }
   };
 
   const exportCSV = () => window.open("/api/export", "_blank");
@@ -52,7 +74,7 @@ export default function SettingsPage() {
   const tabs = [
     { id: 'overview', label: '📊 Overview' },
     { id: 'roles', label: '👥 Roles' },
-    { id: 'bulk', label: '📦 Bulk Actions' },
+    { id: 'bulk', label: '📦 Bulk & Import' },
     { id: 'reports', label: '📈 Reports' },
     { id: 'audit', label: '🔒 Audit Log' },
   ];
@@ -89,13 +111,13 @@ export default function SettingsPage() {
                 <p style={{ fontSize: '13px', opacity: '0.7' }}>Events</p>
               </div>
             </div>
-          ) : <p style={{ opacity: '0.7' }}>Loading reports...</p>}
+          ) : <p style={{ opacity: '0.7' }}>Loading...</p>}
         </div>
       )}
 
       {activeTab === 'roles' && (
         <div style={cardStyle}>
-          <h2 style={{ marginBottom: '15px' }}>Assign Roles ({users.length} members)</h2>
+          <h2 style={{ marginBottom: '15px' }}>Assign Roles ({users.length})</h2>
           {users.map((u: any) => (
             <div key={u._id} style={{ padding: '15px', borderBottom: `1px solid ${borderColor}` }}>
               <p style={{ fontWeight: '600' }}>{u.fullName}</p>
@@ -114,12 +136,33 @@ export default function SettingsPage() {
 
       {activeTab === 'bulk' && (
         <div style={cardStyle}>
-          <h2 style={{ marginBottom: '15px' }}>Bulk Actions</h2>
+          <h2 style={{ marginBottom: '15px' }}>Bulk Actions & CSV Import</h2>
+
+          {/* CSV Import Section */}
+          <div style={{ marginBottom: '20px', padding: '15px', border: `1px solid ${borderColor}`, borderRadius: '8px' }}>
+            <h3 style={{ marginBottom: '10px', fontSize: '15px' }}>📥 CSV Import Members</h3>
+            <p style={{ fontSize: '13px', opacity: '0.7', marginBottom: '10px' }}>
+              Format: <code>fullName,phone,idNumber</code> (one per line)
+            </p>
+            <textarea
+              value={csvData}
+              onChange={(e) => setCsvData(e.target.value)}
+              placeholder={"John Doe,0712345678,12345678\nJane Smith,0723456789,87654321"}
+              style={{ ...inputStyle, minHeight: '100px' }}
+            />
+            <button onClick={importCSV} style={{ background: '#8b5cf6', color: 'white', border: 'none', padding: '10px 15px', borderRadius: '6px', cursor: 'pointer' }}>
+              Import Members
+            </button>
+          </div>
+
+          {/* Bulk Actions */}
           <p style={{ marginBottom: '10px', opacity: '0.7' }}>Selected: {selectedUsers.length} members</p>
           <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', marginBottom: '20px' }}>
             <button onClick={bulkApprove} style={{ background: '#10b981', color: 'white', border: 'none', padding: '10px 15px', borderRadius: '6px', cursor: 'pointer' }}>Approve Selected</button>
             <button onClick={exportCSV} style={{ background: '#3b82f6', color: 'white', border: 'none', padding: '10px 15px', borderRadius: '6px', cursor: 'pointer' }}>Export CSV</button>
           </div>
+
+          {/* Member List */}
           {users.map((u: any) => (
             <div key={u._id} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px', borderBottom: `1px solid ${borderColor}` }}>
               <input type="checkbox" checked={selectedUsers.includes(u._id)} onChange={() => toggleSelect(u._id)} />
