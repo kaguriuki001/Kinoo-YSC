@@ -2,99 +2,72 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 
-const ROLE_ICONS: Record<string, string> = {
-  father: "👑",
-  moderator: "🛡️",
-  secretary: "📋",
-  treasurer: "💰",
-  organizing_secretary: "🚌",
-  vice_secretary: "🧠",
-  liturgist: "✝️",
-  vice_moderator: "⚖️",
-  patron_matron: "👵",
-  member: "👤",
-  settings: "⚙️",
-};
-
-const ROLE_COLORS: Record<string, string> = {
-  father: "#dc2626",
-  moderator: "#0891b2",
-  secretary: "#1d4ed8",
-  treasurer: "#16a34a",
-  organizing_secretary: "#ea580c",
-  vice_secretary: "#7c3aed",
-  liturgist: "#e11d48",
-  vice_moderator: "#d97706",
-  patron_matron: "#c026d3",
-  member: "#2563eb",
-  settings: "#64748b",
-};
-
 export default function Dashboard() {
   const [user, setUser] = useState<any>(null);
+  const [stats, setStats] = useState({ members: 0, events: 0, transactions: 0, balance: 0 });
 
   useEffect(() => {
-    fetch("/api/auth/session")
-      .then(r => r.json())
-      .then(data => {
-        if (data?.user) setUser(data.user);
-        else window.location.href = "/";
-      });
+    fetch("/api/auth/session").then(r => r.json()).then(d => {
+      if (d?.user) setUser(d.user);
+      else window.location.href = "/";
+    });
+    fetch("/api/users").then(r => r.json()).then(d => {
+      if (Array.isArray(d)) setStats(prev => ({ ...prev, members: d.filter((u: any) => u.status === 'active').length }));
+    });
+    fetch("/api/transactions").then(r => r.json()).then(d => {
+      if (Array.isArray(d)) {
+        const total = d.filter((t: any) => t.verified).reduce((s: number, t: any) => s + t.amount, 0);
+        setStats(prev => ({ ...prev, transactions: d.length, balance: total }));
+      }
+    });
   }, []);
 
   if (!user) return <div style={{ padding: '40px', textAlign: 'center' }}>Loading...</div>;
 
   const roles = user.roles && user.roles.length > 0 ? user.roles : ['member'];
-  const allItems = [...roles, 'settings'];
 
   return (
-    <div style={{ maxWidth: '500px', margin: '0 auto', padding: '20px' }}>
-      <div style={{ background: 'linear-gradient(135deg, #1a1a2e, #16213e)', color: 'white', padding: '20px', borderRadius: '12px 12px 0 0', textAlign: 'center' }}>
-        <h1 style={{ fontSize: '22px', fontWeight: 'bold' }}>Kinoo YSC</h1>
-        <p style={{ opacity: '0.8', fontSize: '14px' }}>Welcome, {user.name}</p>
+    <div>
+      {/* Welcome Banner */}
+      <div style={{ background: 'linear-gradient(135deg, #1a1a2e, #16213e)', color: 'white', padding: '20px', borderRadius: '12px', marginBottom: '20px' }}>
+        <h1 style={{ fontSize: '24px', marginBottom: '5px' }}>Welcome, {user.name}</h1>
+        <p style={{ opacity: '0.8' }}>Kinoo Youth Sports Club</p>
       </div>
 
-      <div style={{ background: 'white', borderRadius: '0 0 12px 12px', overflow: 'hidden' }}>
-        {allItems.map((role: string, index: number) => (
-          <Link key={role} href={`/dashboard/${role}`} style={{ textDecoration: 'none' }}>
-            <div style={{
-              display: 'flex', alignItems: 'center', gap: '15px', padding: '16px 20px',
-              borderBottom: index < allItems.length - 1 ? '1px solid #f0f0f0' : 'none',
-              cursor: 'pointer',
-            }}>
-              <div style={{ width: '45px', height: '45px', borderRadius: '50%', background: ROLE_COLORS[role] || '#2563eb', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '22px' }}>
-                {ROLE_ICONS[role] || '👤'}
-              </div>
-              <div style={{ flex: 1 }}>
-                <p style={{ fontWeight: '600', color: '#1a1a2e', fontSize: '16px', textTransform: 'capitalize' }}>
-                  {role.replace(/_/g, ' ')}
-                </p>
-                <p style={{ color: '#666', fontSize: '13px' }}>
-                  {getRoleDescription(role)}
-                </p>
-              </div>
-              <span style={{ color: '#aaa', fontSize: '20px' }}>›</span>
+      {/* Stats Cards */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '10px', marginBottom: '20px' }}>
+        <div style={{ background: 'white', padding: '20px', borderRadius: '10px', textAlign: 'center' }}>
+          <p style={{ fontSize: '28px', fontWeight: 'bold', color: '#1d4ed8' }}>{stats.members}</p>
+          <p style={{ color: '#666', fontSize: '13px' }}>Members</p>
+        </div>
+        <div style={{ background: 'white', padding: '20px', borderRadius: '10px', textAlign: 'center' }}>
+          <p style={{ fontSize: '28px', fontWeight: 'bold', color: '#ea580c' }}>{stats.events}</p>
+          <p style={{ color: '#666', fontSize: '13px' }}>Events</p>
+        </div>
+        <div style={{ background: 'white', padding: '20px', borderRadius: '10px', textAlign: 'center' }}>
+          <p style={{ fontSize: '28px', fontWeight: 'bold', color: '#16a34a' }}>{stats.transactions}</p>
+          <p style={{ color: '#666', fontSize: '13px' }}>Transactions</p>
+        </div>
+        <div style={{ background: 'white', padding: '20px', borderRadius: '10px', textAlign: 'center' }}>
+          <p style={{ fontSize: '28px', fontWeight: 'bold', color: '#7c3aed' }}>KES {stats.balance.toLocaleString()}</p>
+          <p style={{ color: '#666', fontSize: '13px' }}>Balance</p>
+        </div>
+      </div>
+
+      {/* Quick Access - Horizontal scroll (swipe right to left) */}
+      <h2 style={{ fontSize: '16px', marginBottom: '10px' }}>Quick Access</h2>
+      <div style={{ display: 'flex', overflowX: 'auto', gap: '10px', padding: '5px 0', WebkitOverflowScrolling: 'touch' }}>
+        {roles.map((role: string) => (
+          <Link key={role} href={`/dashboard/${role}`} style={{ textDecoration: 'none', flexShrink: 0 }}>
+            <div style={{ background: 'white', padding: '15px 20px', borderRadius: '10px', textAlign: 'center', minWidth: '100px', border: '1px solid #e5e7eb' }}>
+              <p style={{ fontSize: '24px', marginBottom: '5px' }}>
+                {role === 'father' ? '👑' : role === 'moderator' ? '🛡️' : role === 'secretary' ? '📋' : role === 'treasurer' ? '💰' : role === 'organizing_secretary' ? '🚌' : role === 'vice_secretary' ? '🧠' : role === 'liturgist' ? '✝️' : role === 'vice_moderator' ? '⚖️' : role === 'patron_matron' ? '👵' : '👤'}
+              </p>
+              <p style={{ fontSize: '12px', color: '#333', textTransform: 'capitalize' }}>{role.replace(/_/g, ' ')}</p>
             </div>
           </Link>
         ))}
       </div>
     </div>
   );
-}
-
-function getRoleDescription(role: string): string {
-  const descriptions: Record<string, string> = {
-    father: "Supreme Admin - Full Control",
-    moderator: "Group Leader - All Oversight",
-    secretary: "Registrations & Minutes",
-    treasurer: "Finances & Budgets",
-    organizing_secretary: "Events & Logistics",
-    vice_secretary: "Strategy & Analytics",
-    liturgist: "Spiritual Matters",
-    vice_moderator: "Subcommittees",
-    patron_matron: "Oversight & Approvals",
-    member: "Member Access",
-    settings: "App Settings & Management",
-  };
-  return descriptions[role] || "Console Access";
 }
