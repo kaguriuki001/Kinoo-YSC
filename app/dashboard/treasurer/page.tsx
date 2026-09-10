@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { toast } from "sonner";
 
 export default function TreasurerPage() {
@@ -8,6 +8,8 @@ export default function TreasurerPage() {
   const [budgets, setBudgets] = useState<any[]>([]);
   const [members, setMembers] = useState<any[]>([]);
   const [darkMode, setDarkMode] = useState(false);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const [autoRefresh, setAutoRefresh] = useState(true);
 
   const [txForm, setTxForm] = useState({ amount: "", purpose: "", type: "income", description: "", memberId: "" });
   const [budgetForm, setBudgetForm] = useState({ title: "", items: [{ name: "", estimatedCost: "" }] });
@@ -17,18 +19,40 @@ export default function TreasurerPage() {
     fetchAll();
   }, []);
 
+  // Auto-refresh every 10 seconds
+  useEffect(() => {
+    if (!autoRefresh) return;
+    const interval = setInterval(() => {
+      fetchAll();
+    }, 10000);
+    return () => clearInterval(interval);
+  }, [autoRefresh]);
+
+  // Refresh when user comes back to tab
+  useEffect(() => {
+    const handleVisibility = () => {
+      if (!document.hidden) fetchAll();
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+    window.addEventListener('focus', handleVisibility);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibility);
+      window.removeEventListener('focus', handleVisibility);
+    };
+  }, []);
+
   const textColor = darkMode ? '#e2e8f0' : '#1e293b';
   const bgColor = darkMode ? '#1e293b' : '#ffffff';
   const borderColor = darkMode ? '#334155' : '#e5e7eb';
   const cardStyle = { background: bgColor, padding: '20px', borderRadius: '12px', border: `1px solid ${borderColor}`, color: textColor };
   const inputStyle = { width: '100%', padding: '12px', borderRadius: '8px', border: `1px solid ${borderColor}`, background: darkMode ? '#334155' : 'white', color: textColor, marginBottom: '10px' };
 
-  const fetchAll = async () => {
+  const fetchAll = useCallback(async () => {
     try {
       const [txRes, budRes, userRes] = await Promise.all([
-        fetch("/api/transactions"),
-        fetch("/api/budgets"),
-        fetch("/api/users")
+        fetch("/api/transactions", { cache: "no-store" }),
+        fetch("/api/budgets", { cache: "no-store" }),
+        fetch("/api/users", { cache: "no-store" })
       ]);
       const txData = await txRes.json();
       const budData = await budRes.json();
@@ -36,13 +60,13 @@ export default function TreasurerPage() {
       if (Array.isArray(txData)) setTransactions(txData);
       if (Array.isArray(budData)) setBudgets(budData);
       if (Array.isArray(userData)) setMembers(userData.filter((u: any) => u.status === 'active'));
+      setLastUpdated(new Date());
     } catch (e) {}
-  };
+  }, []);
 
   const income = transactions.filter(t => t.type !== 'expense' && t.verified).reduce((s, t) => s + (t.amount || 0), 0);
   const expenses = transactions.filter(t => t.type === 'expense').reduce((s, t) => s + (t.amount || 0), 0);
   const balance = income - expenses;
-  const verifiedCount = transactions.filter(t => t.verified).length;
 
   const addTransaction = async () => {
     if (!txForm.amount || !txForm.purpose) { toast.error("Amount and purpose required"); return; }
@@ -53,9 +77,10 @@ export default function TreasurerPage() {
     });
     const data = await res.json();
     if (res.ok) {
-      toast.success("Transaction added!");
+      toast.success("Transaction added! Dashboard updating...");
       setTxForm({ amount: "", purpose: "", type: "income", description: "", memberId: "" });
-      fetchAll();
+      // Instant refresh
+      await fetchAll();
     } else toast.error(data.error || "Failed");
   };
 
@@ -79,14 +104,19 @@ export default function TreasurerPage() {
     if (res.ok) {
       toast.success("Budget created!");
       setBudgetForm({ title: "", items: [{ name: "", estimatedCost: "" }] });
-      fetchAll();
+      await fetchAll();
     } else toast.error("Failed");
   };
 
   const updateBudgetStatus = async (id: string, status: string) => {
     await fetch("/api/budgets", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, status }) });
     toast.success(`Budget ${status}`);
-    fetchAll();
+    await fetchAll();
+  };
+
+  const manualRefresh = async () => {
+    await fetchAll();
+    toast.success("Refreshed!");
   };
 
   const tabs = [
@@ -98,9 +128,22 @@ export default function TreasurerPage() {
 
   return (
     <div style={{ color: textColor }}>
-      <h1 style={{ fontSize: '28px', marginBottom: '20px' }}>💰 Treasurer Console</h1>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px', marginBottom: '20px' }}>
+        <h1 style={{ fontSize: '28px' }}>💰 Treasurer Console</h1>
+        <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+          {lastUpdated && (
+            <span style={{ fontSize: '12px', opacity: '0.6' }}>
+              Updated: {lastUpdated.toLocaleTimeString()}
+            </span>
+          )}
+          <button onClick={manualRefresh} style={{ background: darkMode ? '#334155' : '#e5e7eb', color: textColor, border: 'none', padding: '8px 14px', borderRadius: '8px', cursor: 'pointer', fontSize: '13px' }}>🔄 Refresh</button>
+          <button onClick={() => setAutoRefresh(!autoRefresh)} style={{ background: autoRefresh ? '#10b981' : darkMode ? '#334155' : '#e5e7eb', color: autoRefresh ? 'white' : textColor, border: 'none', padding: '8px 14px', borderRadius: '8px', cursor: 'pointer', fontSize: '13px' }}>
+            {autoRefresh ? '🟢 Live' : '⚫ Paused'}
+          </button>
+        </div>
+      </div>
 
-      {/* Financial Widgets */}
+      {/* Financial Widgets - Auto-updating */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '15px', marginBottom: '20px' }}>
         <div style={{ background: 'linear-gradient(135deg, #16a34a, #15803d)', padding: '20px', borderRadius: '12px', color: 'white' }}>
           <p style={{ opacity: '0.9', fontSize: '13px' }}>Total Income</p>
@@ -120,47 +163,46 @@ export default function TreasurerPage() {
         </div>
       </div>
 
-      {/* Tabs */}
       <div style={{ display: 'flex', gap: '5px', marginBottom: '20px', flexWrap: 'wrap' }}>
         {tabs.map(t => (
           <button key={t.id} onClick={() => setActiveTab(t.id)} style={{ padding: '10px 20px', border: 'none', borderRadius: '8px', cursor: 'pointer', background: activeTab === t.id ? '#16a34a' : darkMode ? '#334155' : '#e5e7eb', color: activeTab === t.id ? 'white' : textColor, fontSize: '14px' }}>{t.label}</button>
         ))}
       </div>
 
-      {/* Ledger */}
       {activeTab === 'ledger' && (
         <div style={cardStyle}>
           <h2 style={{ marginBottom: '15px' }}>Transaction Ledger ({transactions.length})</h2>
           {transactions.length === 0 ? <p style={{ opacity: '0.7' }}>No transactions yet.</p> : (
-            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-              <thead><tr>
-                <th style={{ textAlign: 'left', padding: '10px', borderBottom: `2px solid ${borderColor}`, fontSize: '13px' }}>Date</th>
-                <th style={{ textAlign: 'left', padding: '10px', borderBottom: `2px solid ${borderColor}`, fontSize: '13px' }}>Purpose</th>
-                <th style={{ textAlign: 'left', padding: '10px', borderBottom: `2px solid ${borderColor}`, fontSize: '13px' }}>Type</th>
-                <th style={{ textAlign: 'left', padding: '10px', borderBottom: `2px solid ${borderColor}`, fontSize: '13px' }}>Amount</th>
-                <th style={{ textAlign: 'left', padding: '10px', borderBottom: `2px solid ${borderColor}`, fontSize: '13px' }}>Status</th>
-              </tr></thead>
-              <tbody>
-                {transactions.map((t: any) => (
-                  <tr key={t._id}>
-                    <td style={{ padding: '10px', borderBottom: `1px solid ${borderColor}`, fontSize: '13px' }}>{new Date(t.date).toLocaleDateString()}</td>
-                    <td style={{ padding: '10px', borderBottom: `1px solid ${borderColor}`, fontSize: '13px' }}>{t.purpose}</td>
-                    <td style={{ padding: '10px', borderBottom: `1px solid ${borderColor}`, fontSize: '13px' }}>
-                      <span style={{ color: t.type === 'expense' ? '#ef4444' : '#10b981' }}>{t.type === 'expense' ? '💸 Expense' : '💰 Income'}</span>
-                    </td>
-                    <td style={{ padding: '10px', borderBottom: `1px solid ${borderColor}`, fontSize: '13px', fontWeight: '600' }}>KES {t.amount}</td>
-                    <td style={{ padding: '10px', borderBottom: `1px solid ${borderColor}`, fontSize: '13px' }}>
-                      <span style={{ color: t.verified ? '#10b981' : '#f59e0b' }}>{t.verified ? '✓ Verified' : 'Pending'}</span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '600px' }}>
+                <thead><tr>
+                  <th style={{ textAlign: 'left', padding: '10px', borderBottom: `2px solid ${borderColor}`, fontSize: '13px' }}>Date</th>
+                  <th style={{ textAlign: 'left', padding: '10px', borderBottom: `2px solid ${borderColor}`, fontSize: '13px' }}>Purpose</th>
+                  <th style={{ textAlign: 'left', padding: '10px', borderBottom: `2px solid ${borderColor}`, fontSize: '13px' }}>Type</th>
+                  <th style={{ textAlign: 'left', padding: '10px', borderBottom: `2px solid ${borderColor}`, fontSize: '13px' }}>Amount</th>
+                  <th style={{ textAlign: 'left', padding: '10px', borderBottom: `2px solid ${borderColor}`, fontSize: '13px' }}>Member</th>
+                </tr></thead>
+                <tbody>
+                  {transactions.map((t: any) => (
+                    <tr key={t._id}>
+                      <td style={{ padding: '10px', borderBottom: `1px solid ${borderColor}`, fontSize: '13px' }}>{new Date(t.date).toLocaleDateString()}</td>
+                      <td style={{ padding: '10px', borderBottom: `1px solid ${borderColor}`, fontSize: '13px' }}>{t.purpose}</td>
+                      <td style={{ padding: '10px', borderBottom: `1px solid ${borderColor}`, fontSize: '13px' }}>
+                        <span style={{ color: t.type === 'expense' ? '#ef4444' : '#10b981', fontWeight: '600' }}>
+                          {t.type === 'expense' ? '💸 Expense' : '💰 Income'}
+                        </span>
+                      </td>
+                      <td style={{ padding: '10px', borderBottom: `1px solid ${borderColor}`, fontSize: '13px', fontWeight: '600' }}>KES {(t.amount || 0).toLocaleString()}</td>
+                      <td style={{ padding: '10px', borderBottom: `1px solid ${borderColor}`, fontSize: '13px', opacity: '0.7' }}>{t.fromUser?.fullName || '—'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
         </div>
       )}
 
-      {/* Add Transaction */}
       {activeTab === 'add' && (
         <div style={cardStyle}>
           <h2 style={{ marginBottom: '15px' }}>Add Transaction</h2>
@@ -186,7 +228,6 @@ export default function TreasurerPage() {
         </div>
       )}
 
-      {/* Budgets */}
       {activeTab === 'budgets' && (
         <div>
           <div style={{ ...cardStyle, marginBottom: '20px' }}>
@@ -217,10 +258,7 @@ export default function TreasurerPage() {
                     <h3 style={{ fontWeight: '600' }}>{b.title}</h3>
                     <p style={{ fontSize: '13px', opacity: '0.7' }}>Total: KES {(b.totalAmount || 0).toLocaleString()}</p>
                     <p style={{ fontSize: '12px', opacity: '0.6' }}>
-                      Status: <span style={{
-                        color: b.status === 'approved' ? '#10b981' : b.status === 'rejected' ? '#ef4444' : '#f59e0b',
-                        fontWeight: '600'
-                      }}>{b.status || 'draft'}</span>
+                      Status: <span style={{ color: b.status === 'approved' ? '#10b981' : b.status === 'rejected' ? '#ef4444' : '#f59e0b', fontWeight: '600' }}>{b.status || 'draft'}</span>
                     </p>
                   </div>
                   <div style={{ display: 'flex', gap: '6px' }}>
@@ -241,14 +279,13 @@ export default function TreasurerPage() {
         </div>
       )}
 
-      {/* Reports */}
       {activeTab === 'reports' && (
         <div style={cardStyle}>
           <h2 style={{ marginBottom: '15px' }}>Financial Reports</h2>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px', marginBottom: '20px' }}>
             <div style={{ padding: '16px', background: darkMode ? '#334155' : '#f0fdf4', borderRadius: '10px' }}>
               <p style={{ fontSize: '13px', opacity: '0.7' }}>Income Sources</p>
-              {Object.entries(transactions.filter(t => t.type !== 'expense' && t.verified).reduce((acc: any, t: any) => { acc[t.purpose] = (acc[t.purpose] || 0) + t.amount; return acc; }, {})).map(([k, v]: any) => (
+              {Object.entries(transactions.filter(t => t.type !== 'expense').reduce((acc: any, t: any) => { acc[t.purpose] = (acc[t.purpose] || 0) + t.amount; return acc; }, {})).map(([k, v]: any) => (
                 <p key={k} style={{ fontSize: '14px' }}>{k}: <strong>KES {v.toLocaleString()}</strong></p>
               ))}
               {transactions.filter(t => t.type !== 'expense').length === 0 && <p style={{ fontSize: '13px', opacity: '0.6' }}>No income yet</p>}
