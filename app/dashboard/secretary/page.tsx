@@ -21,20 +21,25 @@ export default function SecretaryPage() {
   const bgColor = darkMode ? '#1e293b' : '#ffffff';
   const borderColor = darkMode ? '#334155' : '#e5e7eb';
   const cardStyle = { background: bgColor, padding: '20px', borderRadius: '12px', border: `1px solid ${borderColor}`, color: textColor };
+  const inputStyle = { width: '100%', padding: '12px', borderRadius: '8px', border: `1px solid ${borderColor}`, background: darkMode ? '#334155' : 'white', color: textColor, marginBottom: '10px' };
 
   const fetchUsers = async () => {
-    const res = await fetch("/api/users", { credentials: "include" });
-    const data = await res.json();
-    if (Array.isArray(data)) {
-      setUsers(data.filter((u: any) => u.status === 'active'));
-      setPending(data.filter((u: any) => u.status === 'pending'));
-    }
+    try {
+      const res = await fetch("/api/users");
+      const data = await res.json();
+      if (Array.isArray(data)) {
+        setUsers(data.filter((u: any) => u.status === 'active'));
+        setPending(data.filter((u: any) => u.status === 'pending'));
+      }
+    } catch (e) {}
   };
 
   const fetchMinutes = async () => {
-    const res = await fetch("/api/minutes");
-    const data = await res.json();
-    if (Array.isArray(data)) setMinutes(data);
+    try {
+      const res = await fetch("/api/minutes");
+      const data = await res.json();
+      if (Array.isArray(data)) setMinutes(data);
+    } catch (e) {}
   };
 
   const approve = async (id: string) => {
@@ -43,15 +48,36 @@ export default function SecretaryPage() {
     fetchUsers();
   };
 
+  const reject = async (id: string) => {
+    await fetch("/api/bulk", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: 'delete', userIds: [id] }) });
+    toast.success("Member rejected");
+    fetchUsers();
+  };
+
   const saveMinute = async () => {
     if (!newMinute.trim()) { toast.error("Enter minutes content"); return; }
-    const res = await fetch("/api/minutes", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ content: newMinute }) });
-    if (res.ok) { toast.success("Minutes saved!"); setNewMinute(""); fetchMinutes(); }
+    const res = await fetch("/api/minutes", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ content: newMinute, uploadedBy: "secretary" })
+    });
+    if (res.ok) {
+      toast.success("Minutes saved to database!");
+      setNewMinute("");
+      fetchMinutes();
+    } else {
+      toast.error("Failed to save");
+    }
   };
 
   const sendMessage = async () => {
     if (!message.trim()) { toast.error("Enter message"); return; }
-    toast.success("Message sent to all members!");
+    await fetch("/api/notifications", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ title: "Message from Secretary", message, type: "general" })
+    });
+    toast.success("Message sent to all!");
     setMessage("");
   };
 
@@ -81,7 +107,10 @@ export default function SecretaryPage() {
                 <p style={{ fontSize: '14px', opacity: '0.7' }}>{u.phone}</p>
                 <p style={{ fontSize: '12px', opacity: '0.5' }}>ID: {u.idNumber || 'N/A'}</p>
               </div>
-              <button onClick={() => approve(u._id)} style={{ background: '#22c55e', color: 'white', border: 'none', padding: '8px 16px', borderRadius: '6px', cursor: 'pointer' }}>Approve</button>
+              <div style={{ display: 'flex', gap: '10px' }}>
+                <button onClick={() => approve(u._id)} style={{ background: '#22c55e', color: 'white', border: 'none', padding: '8px 16px', borderRadius: '6px', cursor: 'pointer' }}>Approve</button>
+                <button onClick={() => reject(u._id)} style={{ background: '#ef4444', color: 'white', border: 'none', padding: '8px 16px', borderRadius: '6px', cursor: 'pointer' }}>Reject</button>
+              </div>
             </div>
           ))}
         </div>
@@ -95,7 +124,6 @@ export default function SecretaryPage() {
               <th style={{ textAlign: 'left', padding: '10px', borderBottom: `2px solid ${borderColor}`, fontSize: '13px' }}>Name</th>
               <th style={{ textAlign: 'left', padding: '10px', borderBottom: `2px solid ${borderColor}`, fontSize: '13px' }}>Phone</th>
               <th style={{ textAlign: 'left', padding: '10px', borderBottom: `2px solid ${borderColor}`, fontSize: '13px' }}>Roles</th>
-              <th style={{ textAlign: 'left', padding: '10px', borderBottom: `2px solid ${borderColor}`, fontSize: '13px' }}>Joined</th>
             </tr></thead>
             <tbody>
               {users.map((u: any) => (
@@ -103,7 +131,6 @@ export default function SecretaryPage() {
                   <td style={{ padding: '10px', borderBottom: `1px solid ${borderColor}` }}>{u.fullName}</td>
                   <td style={{ padding: '10px', borderBottom: `1px solid ${borderColor}` }}>{u.phone}</td>
                   <td style={{ padding: '10px', borderBottom: `1px solid ${borderColor}` }}>{u.roles?.join(', ')}</td>
-                  <td style={{ padding: '10px', borderBottom: `1px solid ${borderColor}` }}>{new Date(u.createdAt).toLocaleDateString()}</td>
                 </tr>
               ))}
             </tbody>
@@ -114,12 +141,13 @@ export default function SecretaryPage() {
       {activeTab === 'minutes' && (
         <div style={cardStyle}>
           <h2 style={{ marginBottom: '15px' }}>Meeting Minutes</h2>
-          <textarea value={newMinute} onChange={(e) => setNewMinute(e.target.value)} placeholder="Enter minutes..." style={{ width: '100%', minHeight: '120px', padding: '12px', borderRadius: '8px', border: `1px solid ${borderColor}`, background: darkMode ? '#334155' : 'white', color: textColor, marginBottom: '10px' }} />
-          <button onClick={saveMinute} style={{ background: '#1d4ed8', color: 'white', border: 'none', padding: '10px 20px', borderRadius: '8px', cursor: 'pointer' }}>Save Minutes</button>
-          <h3 style={{ margin: '20px 0 10px' }}>Previous ({minutes.length})</h3>
-          {minutes.map((m: any) => (
+          <textarea value={newMinute} onChange={(e) => setNewMinute(e.target.value)} placeholder="Enter minutes content..." style={{ ...inputStyle, minHeight: '120px' }} />
+          <button onClick={saveMinute} style={{ background: '#1d4ed8', color: 'white', border: 'none', padding: '10px 20px', borderRadius: '8px', cursor: 'pointer' }}>💾 Save to Database</button>
+          
+          <h3 style={{ margin: '20px 0 10px' }}>Previous Minutes ({minutes.length})</h3>
+          {minutes.length === 0 ? <p style={{ opacity: '0.7' }}>No minutes saved yet.</p> : minutes.map((m: any) => (
             <div key={m._id} style={{ padding: '12px', background: darkMode ? '#334155' : '#f9fafb', borderRadius: '8px', marginBottom: '8px' }}>
-              <p style={{ fontSize: '12px', opacity: '0.6' }}>{new Date(m.date).toLocaleDateString()}</p>
+              <p style={{ fontSize: '12px', opacity: '0.6' }}>{new Date(m.date).toLocaleString()}</p>
               <p>{m.content}</p>
             </div>
           ))}
@@ -129,8 +157,8 @@ export default function SecretaryPage() {
       {activeTab === 'comms' && (
         <div style={cardStyle}>
           <h2 style={{ marginBottom: '15px' }}>Send Communication</h2>
-          <textarea value={message} onChange={(e) => setMessage(e.target.value)} placeholder="Type message to all members..." style={{ width: '100%', minHeight: '100px', padding: '12px', borderRadius: '8px', border: `1px solid ${borderColor}`, background: darkMode ? '#334155' : 'white', color: textColor, marginBottom: '10px' }} />
-          <button onClick={sendMessage} style={{ background: '#16a34a', color: 'white', border: 'none', padding: '10px 20px', borderRadius: '8px', cursor: 'pointer' }}>Send to All</button>
+          <textarea value={message} onChange={(e) => setMessage(e.target.value)} placeholder="Type message to all members..." style={{ ...inputStyle, minHeight: '100px' }} />
+          <button onClick={sendMessage} style={{ background: '#16a34a', color: 'white', border: 'none', padding: '10px 20px', borderRadius: '8px', cursor: 'pointer' }}>📢 Send to All</button>
         </div>
       )}
     </div>
