@@ -34,6 +34,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const roles = user.roles || ['member'];
   const isAdmin = roles.includes('father') || roles.includes('moderator');
 
+  // Minutes access
+  const minutesRoles = ['secretary', 'moderator', 'vice_moderator', 'patron_matron', 'father'];
+  const canSeeMinutes = roles.some((r: string) => minutesRoles.includes(r));
+
+  // FRAGO access
+  const fragoRoles = ['organizing_secretary', 'secretary', 'moderator', 'patron_matron', 'father'];
+  const canSeeFrago = roles.some((r: string) => fragoRoles.includes(r));
+
   const allConsoles = [
     { href: '/dashboard', label: 'Dashboard', icon: '🏠', alwaysShow: true },
     { href: '/dashboard/father', label: 'Father', icon: '👑', role: 'father' },
@@ -45,16 +53,19 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     { href: '/dashboard/liturgist', label: 'Liturgist', icon: '✝️', role: 'liturgist' },
     { href: '/dashboard/vice-moderator', label: 'Vice Moderator', icon: '⚖️', role: 'vice_moderator' },
     { href: '/dashboard/patron-matron', label: 'Patron/Matron', icon: '👵', role: 'patron_matron' },
-    { href: '/minutes.html', label: 'Minutes', icon: '📝', alwaysShow: true, external: true },
+    { href: '/dashboard/frago', label: 'FRAGO', icon: '🎯', fragoOnly: true },
+    { href: '/minutes.html', label: 'Minutes', icon: '📝', minutesOnly: true, external: true },
     { href: '/dashboard/settings', label: 'Settings', icon: '⚙️', role: 'settings' },
   ];
 
-  const visibleConsoles = allConsoles.filter(c => 
-    c.alwaysShow || isAdmin || (c.role && roles.includes(c.role))
-  );
+  const visibleConsoles = allConsoles.filter((c: any) => {
+    if (c.minutesOnly) return canSeeMinutes;
+    if (c.fragoOnly) return canSeeFrago;
+    return c.alwaysShow || isAdmin || (c.role && roles.includes(c.role));
+  });
 
   const internalConsoles = visibleConsoles.filter((c: any) => !c.external);
-  const currentIndex = internalConsoles.findIndex(c => pathname === c.href);
+  const currentIndex = internalConsoles.findIndex((c: any) => pathname === c.href);
   const goBack = () => { if (currentIndex > 0) router.push(internalConsoles[currentIndex - 1].href); };
   const goForward = () => { if (currentIndex >= 0 && currentIndex < internalConsoles.length - 1) router.push(internalConsoles[currentIndex + 1].href); };
 
