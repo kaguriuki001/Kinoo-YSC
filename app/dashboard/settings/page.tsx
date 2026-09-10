@@ -10,12 +10,14 @@ export default function SettingsPage() {
   const [auditLogs, setAuditLogs] = useState<any[]>([]);
   const [darkMode, setDarkMode] = useState(false);
   const [csvData, setCsvData] = useState("");
+  const [mpesaSettings, setMpesaSettings] = useState({ paybill: "", tillNumber: "", accountNumber: "", accountName: "", organizationName: "Kinoo YSC" });
 
   useEffect(() => {
     setDarkMode(localStorage.getItem('kinoo_theme') === 'dark');
     refreshUsers();
     fetch("/api/reports").then(r => r.json()).then(setReports).catch(() => {});
     fetch("/api/audit").then(r => r.json()).then(d => { if (Array.isArray(d)) setAuditLogs(d); }).catch(() => {});
+    fetch("/api/settings").then(r => r.json()).then(d => { if (d) setMpesaSettings(d); }).catch(() => {});
   }, []);
 
   const textColor = darkMode ? '#e2e8f0' : '#1e293b';
@@ -29,7 +31,7 @@ export default function SettingsPage() {
   const refreshUsers = () => {
     fetch("/api/users", { credentials: "include" }).then(r => r.json()).then(d => {
       if (Array.isArray(d)) setUsers(d.filter((u: any) => u.status === 'active'));
-    });
+    }).catch(() => {});
   };
 
   const assignRole = async (userId: string, role: string) => {
@@ -56,13 +58,8 @@ export default function SettingsPage() {
     if (!csvData.trim()) { toast.error("Paste CSV data first"); return; }
     const res = await fetch("/api/import-csv", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ csvData }) });
     const data = await res.json();
-    if (res.ok) {
-      toast.success(data.message);
-      setCsvData("");
-      refreshUsers();
-    } else {
-      toast.error(data.error || "Import failed");
-    }
+    if (res.ok) { toast.success(data.message); setCsvData(""); refreshUsers(); }
+    else toast.error(data.error || "Import failed");
   };
 
   const exportCSV = () => window.open("/api/export", "_blank");
@@ -71,10 +68,21 @@ export default function SettingsPage() {
     setSelectedUsers(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
   };
 
+  const saveMpesaSettings = async () => {
+    const res = await fetch("/api/settings", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(mpesaSettings)
+    });
+    if (res.ok) toast.success("M-Pesa settings saved!");
+    else toast.error("Failed to save");
+  };
+
   const tabs = [
     { id: 'overview', label: '📊 Overview' },
     { id: 'roles', label: '👥 Roles' },
     { id: 'bulk', label: '📦 Bulk & Import' },
+    { id: 'mpesa', label: '💰 M-Pesa Settings' },
     { id: 'reports', label: '📈 Reports' },
     { id: 'audit', label: '🔒 Audit Log' },
   ];
@@ -138,7 +146,6 @@ export default function SettingsPage() {
         <div style={cardStyle}>
           <h2 style={{ marginBottom: '15px' }}>Bulk Actions & CSV Import</h2>
 
-          {/* CSV Import Section */}
           <div style={{ marginBottom: '20px', padding: '15px', border: `1px solid ${borderColor}`, borderRadius: '8px' }}>
             <h3 style={{ marginBottom: '10px', fontSize: '15px' }}>📥 CSV Import Members</h3>
             <p style={{ fontSize: '13px', opacity: '0.7', marginBottom: '10px' }}>
@@ -155,14 +162,12 @@ export default function SettingsPage() {
             </button>
           </div>
 
-          {/* Bulk Actions */}
           <p style={{ marginBottom: '10px', opacity: '0.7' }}>Selected: {selectedUsers.length} members</p>
           <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', marginBottom: '20px' }}>
             <button onClick={bulkApprove} style={{ background: '#10b981', color: 'white', border: 'none', padding: '10px 15px', borderRadius: '6px', cursor: 'pointer' }}>Approve Selected</button>
             <button onClick={exportCSV} style={{ background: '#3b82f6', color: 'white', border: 'none', padding: '10px 15px', borderRadius: '6px', cursor: 'pointer' }}>Export CSV</button>
           </div>
 
-          {/* Member List */}
           {users.map((u: any) => (
             <div key={u._id} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px', borderBottom: `1px solid ${borderColor}` }}>
               <input type="checkbox" checked={selectedUsers.includes(u._id)} onChange={() => toggleSelect(u._id)} />
@@ -172,6 +177,46 @@ export default function SettingsPage() {
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {activeTab === 'mpesa' && (
+        <div style={cardStyle}>
+          <h2 style={{ marginBottom: '15px' }}>💰 M-Pesa Configuration</h2>
+          <p style={{ fontSize: '13px', opacity: '0.7', marginBottom: '20px' }}>
+            Set the payment destination for member contributions. This will be used when members send M-Pesa prompts.
+          </p>
+
+          <div style={{ maxWidth: '500px' }}>
+            <label style={{ fontSize: '13px', opacity: '0.7' }}>Organization Name</label>
+            <input value={mpesaSettings.organizationName} onChange={(e) => setMpesaSettings({...mpesaSettings, organizationName: e.target.value})} style={inputStyle} />
+
+            <label style={{ fontSize: '13px', opacity: '0.7' }}>Paybill Number (optional)</label>
+            <input value={mpesaSettings.paybill} onChange={(e) => setMpesaSettings({...mpesaSettings, paybill: e.target.value})} placeholder="e.g., 247247" style={inputStyle} />
+            <p style={{ fontSize: '12px', opacity: '0.5', marginTop: '-5px', marginBottom: '10px' }}>Use this if you have a Paybill</p>
+
+            <label style={{ fontSize: '13px', opacity: '0.7' }}>Till Number / Buy Goods (optional)</label>
+            <input value={mpesaSettings.tillNumber} onChange={(e) => setMpesaSettings({...mpesaSettings, tillNumber: e.target.value})} placeholder="e.g., 5123456" style={inputStyle} />
+            <p style={{ fontSize: '12px', opacity: '0.5', marginTop: '-5px', marginBottom: '10px' }}>Use this if you have a Till Number (Buy Goods)</p>
+
+            <label style={{ fontSize: '13px', opacity: '0.7' }}>Account Number</label>
+            <input value={mpesaSettings.accountNumber} onChange={(e) => setMpesaSettings({...mpesaSettings, accountNumber: e.target.value})} placeholder="e.g., KINOOYSC" style={inputStyle} />
+            <p style={{ fontSize: '12px', opacity: '0.5', marginTop: '-5px', marginBottom: '10px' }}>Shown as the payment reference</p>
+
+            <label style={{ fontSize: '13px', opacity: '0.7' }}>Account Name</label>
+            <input value={mpesaSettings.accountName} onChange={(e) => setMpesaSettings({...mpesaSettings, accountName: e.target.value})} placeholder="e.g., Kinoo Youth Sports Club" style={inputStyle} />
+
+            <button onClick={saveMpesaSettings} style={{ background: '#16a34a', color: 'white', border: 'none', padding: '12px 24px', borderRadius: '8px', cursor: 'pointer', fontWeight: '600', width: '100%', marginTop: '10px' }}>
+              💾 Save M-Pesa Settings
+            </button>
+
+            <div style={{ marginTop: '20px', padding: '15px', background: darkMode ? '#334155' : '#f0fdf4', borderRadius: '8px' }}>
+              <p style={{ fontSize: '13px', fontWeight: '600', marginBottom: '8px' }}>ℹ️ How it works</p>
+              <p style={{ fontSize: '12px', opacity: '0.8', lineHeight: '1.6' }}>
+                When a member clicks "Send M-Pesa Prompt" on the dashboard, an STK push will be sent to their phone. They enter their PIN, and the payment goes directly to the configured Paybill or Till Number above.
+              </p>
+            </div>
+          </div>
         </div>
       )}
 
@@ -195,10 +240,10 @@ export default function SettingsPage() {
       {activeTab === 'audit' && (
         <div style={cardStyle}>
           <h2 style={{ marginBottom: '15px' }}>Audit Log ({auditLogs.length})</h2>
-          {auditLogs.length === 0 ? <p style={{ opacity: '0.7' }}>No audit entries.</p> : auditLogs.map((a: any, i: number) => (
+          {auditLogs.length === 0 ? <p style={{ opacity: '0.7' }}>No audit entries.</p> : auditLogs.slice().reverse().map((a: any, i: number) => (
             <div key={i} style={{ padding: '12px', border: `1px solid ${borderColor}`, borderRadius: '8px', marginBottom: '8px', fontSize: '13px' }}>
               <p><strong>{a.action}</strong> - {new Date(a.timestamp).toLocaleString()}</p>
-              <p style={{ opacity: '0.6' }}>Hash: {a.hash?.substring(0, 20)}...</p>
+              {a.reason && <p style={{ opacity: '0.7' }}>{a.reason}</p>}
             </div>
           ))}
         </div>
