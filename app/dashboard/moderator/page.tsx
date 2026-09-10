@@ -19,55 +19,39 @@ export default function ModeratorPage() {
   const cardStyle = { background: bgColor, padding: '20px', borderRadius: '12px', border: `1px solid ${borderColor}`, color: textColor };
 
   const fetchUsers = async () => {
-    const res = await fetch("/api/users", { credentials: "include" });
-    const data = await res.json();
-    if (Array.isArray(data)) {
-      setUsers(data.filter((u: any) => u.status === 'active'));
-      setPending(data.filter((u: any) => u.status === 'pending'));
-    }
+    try { const res = await fetch("/api/users"); const data = await res.json(); if (Array.isArray(data)) { setUsers(data.filter((u: any) => u.status === 'active')); setPending(data.filter((u: any) => u.status === 'pending')); } } catch (e) {}
   };
 
-  const approve = async (id: string) => {
-    await fetch("/api/assign-role", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ userId: id, role: 'member' }) });
-    toast.success("Approved!");
-    fetchUsers();
-  };
+  const approve = async (id: string) => { await fetch("/api/assign-role", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ userId: id, role: 'member' }) }); toast.success("Approved!"); fetchUsers(); };
+  const reject = async (id: string) => { await fetch("/api/bulk", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: 'delete', userIds: [id] }) }); toast.success("Rejected"); fetchUsers(); };
+  const resetPass = async (id: string) => { await fetch("/api/reset-password", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ userId: id, newPassword: "Kinoo123!" }) }); toast.success("Password: Kinoo123!"); };
+  const assignRole = async (id: string, role: string) => { await fetch("/api/assign-role", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ userId: id, role }) }); toast.success(`Added: ${role}`); fetchUsers(); };
 
-  const resetPass = async (id: string) => {
-    await fetch("/api/reset-password", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ userId: id, newPassword: "Kinoo123!" }) });
-    toast.success("Password reset to: Kinoo123!");
-  };
-
-  const assignRole = async (id: string, role: string) => {
-    await fetch("/api/assign-role", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ userId: id, role }) });
-    toast.success(`Added: ${role}`);
-    fetchUsers();
-  };
-
-  const allRoles = ['secretary', 'treasurer', 'organizing_secretary', 'vice_secretary', 'liturgist', 'vice_moderator', 'moderator', 'patron_matron'];
+  const allRoles = ['secretary', 'treasurer', 'organizing_secretary', 'vice_secretary', 'liturgist', 'vice_moderator', 'moderator', 'patron_matron', 'father'];
 
   const tabs = [
     { id: 'approvals', label: '✅ Approvals' },
     { id: 'members', label: '👥 Members' },
-    { id: 'roles', label: '🔑 Roles' },
+    { id: 'roles', label: '🔑 Assign Roles' },
   ];
 
   return (
     <div style={{ color: textColor }}>
       <h1 style={{ fontSize: '28px', marginBottom: '20px' }}>🛡️ Moderator Console</h1>
       <div style={{ display: 'flex', gap: '5px', marginBottom: '20px', flexWrap: 'wrap' }}>
-        {tabs.map(t => (
-          <button key={t.id} onClick={() => setActiveTab(t.id)} style={{ padding: '10px 20px', border: 'none', borderRadius: '8px', cursor: 'pointer', background: activeTab === t.id ? '#0891b2' : darkMode ? '#334155' : '#e5e7eb', color: activeTab === t.id ? 'white' : textColor, fontSize: '14px' }}>{t.label}</button>
-        ))}
+        {tabs.map(t => (<button key={t.id} onClick={() => setActiveTab(t.id)} style={{ padding: '10px 20px', border: 'none', borderRadius: '8px', cursor: 'pointer', background: activeTab === t.id ? '#0891b2' : darkMode ? '#334155' : '#e5e7eb', color: activeTab === t.id ? 'white' : textColor, fontSize: '14px' }}>{t.label}</button>))}
       </div>
 
       {activeTab === 'approvals' && (
         <div style={cardStyle}>
-          <h2 style={{ marginBottom: '15px' }}>Pending ({pending.length})</h2>
-          {pending.map((u: any) => (
-            <div key={u._id} style={{ display: 'flex', justifyContent: 'space-between', padding: '15px', borderBottom: `1px solid ${borderColor}` }}>
+          <h2 style={{ marginBottom: '15px' }}>Pending Approvals ({pending.length})</h2>
+          {pending.length === 0 ? <p style={{ opacity: '0.7' }}>No pending approvals</p> : pending.map((u: any) => (
+            <div key={u._id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '15px', borderBottom: `1px solid ${borderColor}` }}>
               <div><p style={{ fontWeight: '600' }}>{u.fullName}</p><p style={{ opacity: '0.7', fontSize: '14px' }}>{u.phone}</p></div>
-              <button onClick={() => approve(u._id)} style={{ background: '#22c55e', color: 'white', border: 'none', padding: '8px 16px', borderRadius: '6px', cursor: 'pointer' }}>Approve</button>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <button onClick={() => approve(u._id)} style={{ background: '#22c55e', color: 'white', border: 'none', padding: '8px 16px', borderRadius: '6px', cursor: 'pointer' }}>Approve</button>
+                <button onClick={() => reject(u._id)} style={{ background: '#ef4444', color: 'white', border: 'none', padding: '8px 16px', borderRadius: '6px', cursor: 'pointer' }}>Reject</button>
+              </div>
             </div>
           ))}
         </div>
@@ -95,7 +79,8 @@ export default function ModeratorPage() {
           {users.map((u: any) => (
             <div key={u._id} style={{ padding: '15px', borderBottom: `1px solid ${borderColor}` }}>
               <p style={{ fontWeight: '600' }}>{u.fullName}</p>
-              <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap', marginTop: '5px' }}>
+              <p style={{ fontSize: '12px', opacity: '0.7' }}>Current: {u.roles?.join(', ')}</p>
+              <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap', marginTop: '8px' }}>
                 {allRoles.filter((r: string) => !u.roles?.includes(r)).map((r: string) => (
                   <button key={r} onClick={() => assignRole(u._id, r)} style={{ background: '#3b82f6', color: 'white', border: 'none', padding: '5px 10px', borderRadius: '4px', cursor: 'pointer', fontSize: '12px' }}>+ {r.replace('_',' ')}</button>
                 ))}

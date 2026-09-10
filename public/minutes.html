@@ -1,0 +1,1556 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Minutes System</title>
+    <style>
+        :root {
+            --bg: #f4f7fc;
+            --card: #ffffff;
+            --text: #1e2a3a;
+            --border: #e9edf4;
+            --shadow: rgba(0,0,0,0.04);
+            --input-bg: #fafcff;
+            --input-border: #d0d9e6;
+            --badge-bg: #1f3a5f;
+            --preview-bg: #f8fbff;
+            --preview-border: #bacde0;
+            --stats-bg: #e9f0fa;
+            --btn-primary: #1a5bbf;
+            --btn-success: #1f8b4c;
+            --btn-danger: #d43f3f;
+            --btn-outline: #c8d2e0;
+        }
+        body.dark {
+            --bg: #1a1a2e;
+            --card: #16213e;
+            --text: #e4e9f0;
+            --border: #2a3a5e;
+            --shadow: rgba(0,0,0,0.3);
+            --input-bg: #1e2a3a;
+            --input-border: #3a4a6e;
+            --badge-bg: #3a4a6e;
+            --preview-bg: #0f1a2e;
+            --preview-border: #2a3a5e;
+            --stats-bg: #1e2a3a;
+            --btn-primary: #2a7de1;
+            --btn-success: #28a745;
+            --btn-danger: #dc3545;
+            --btn-outline: #3a4a6e;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            padding: 12px;
+            transition: background 0.3s, color 0.3s;
+            min-height: 100vh;
+        }
+        .container { max-width: 800px; margin: 0 auto; }
+        .card {
+            background: var(--card);
+            border-radius: 16px;
+            padding: 16px;
+            margin-bottom: 14px;
+            border: 1px solid var(--border);
+            box-shadow: 0 2px 8px var(--shadow);
+            transition: background 0.3s, border 0.3s;
+        }
+        .card h2 {
+            font-size: 18px;
+            margin-bottom: 12px;
+            border-bottom: 2px solid var(--border);
+            padding-bottom: 6px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        .flex-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            align-items: center;
+        }
+        .flex-row input, .flex-row select {
+            flex: 1;
+            min-width: 80px;
+            padding: 10px 12px;
+            border: 1px solid var(--input-border);
+            border-radius: 8px;
+            background: var(--input-bg);
+            color: var(--text);
+            font-size: 14px;
+            transition: 0.2s;
+        }
+        .flex-row input:focus, .flex-row select:focus {
+            outline: none;
+            border-color: var(--btn-primary);
+            box-shadow: 0 0 0 3px rgba(26,91,191,0.15);
+        }
+        .btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 13px;
+            cursor: pointer;
+            transition: 0.2s;
+            white-space: nowrap;
+        }
+        .btn-primary { background: var(--btn-primary); color: white; }
+        .btn-success { background: var(--btn-success); color: white; }
+        .btn-danger { background: var(--btn-danger); color: white; }
+        .btn-outline { background: transparent; border: 1px solid var(--btn-outline); color: var(--text); }
+        .btn-sm { padding: 6px 12px; font-size: 12px; }
+        .btn-icon { font-size: 16px; line-height: 1; }
+        .btn:hover { opacity: 0.85; transform: scale(0.97); }
+        .member-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            padding: 10px;
+            background: var(--stats-bg);
+            border-radius: 10px;
+            margin-top: 8px;
+            border: 1px solid var(--border);
+        }
+        .member-tag {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            background: var(--card);
+            padding: 4px 8px 4px 10px;
+            border-radius: 30px;
+            border: 1px solid var(--border);
+            font-size: 13px;
+        }
+        .member-tag input[type="checkbox"] { width: 16px; height: 16px; accent-color: var(--btn-primary); }
+        .member-tag .edit-contact { color: var(--text); opacity: 0.6; cursor: pointer; font-size: 13px; padding: 0 3px; border: none; background: transparent; }
+        .member-tag .remove { color: var(--btn-danger); cursor: pointer; font-size: 15px; margin-left: 2px; }
+        .stats-bar {
+            display: flex; flex-wrap: wrap; gap: 12px 24px;
+            padding: 10px 14px;
+            background: var(--stats-bg);
+            border-radius: 10px;
+            margin-top: 8px;
+            font-size: 13px;
+            font-weight: 500;
+            border: 1px solid var(--border);
+        }
+        .badge {
+            background: var(--badge-bg);
+            color: white;
+            border-radius: 30px;
+            padding: 0 12px;
+            font-size: 12px;
+            line-height: 24px;
+        }
+        .badge-green { background: var(--btn-success); }
+        .badge-red { background: var(--btn-danger); }
+        .empty-state { color: var(--text); opacity: 0.6; font-style: italic; font-size: 14px; padding: 4px 0; }
+        .guest-item, .agenda-item, .action-item {
+            display: flex; flex-wrap: wrap; gap: 6px;
+            background: var(--stats-bg);
+            padding: 10px 12px;
+            border-radius: 10px;
+            border-left: 4px solid var(--btn-primary);
+            border: 1px solid var(--border);
+            border-left-width: 4px;
+            margin-bottom: 6px;
+        }
+        .guest-item input, .agenda-item input, .agenda-item textarea, .action-item input {
+            flex: 1 1 100px;
+            padding: 6px 10px;
+            border: 1px solid var(--input-border);
+            border-radius: 6px;
+            background: var(--input-bg);
+            color: var(--text);
+            font-size: 13px;
+        }
+        .agenda-item textarea { flex-basis: 150px; min-width: 80px; resize: vertical; }
+        .preview-area {
+            background: var(--preview-bg);
+            border: 2px dashed var(--preview-border);
+            border-radius: 12px;
+            padding: 16px 18px;
+            margin-top: 10px;
+            font-family: 'Times New Roman', Georgia, serif;
+            line-height: 1.5;
+            font-size: 14px;
+            color: var(--text);
+        }
+        .preview-area h3 { font-size: 20px; text-align: center; border-bottom: 2px solid var(--border); padding-bottom: 8px; margin-bottom: 6px; }
+        .preview-area .sub-heading { text-align: center; font-size: 15px; color: var(--text); opacity: 0.7; margin-bottom: 12px; font-weight: normal; }
+        .preview-area .meta { display: flex; flex-wrap: wrap; justify-content: space-between; font-size: 13px; margin-bottom: 10px; }
+        .preview-area ol { margin: 4px 0 8px 18px; }
+        .preview-area ul { margin: 4px 0 8px 16px; }
+        .preview-area li { padding: 1px 0; }
+        .preview-area .action-table { width: 100%; border-collapse: collapse; margin-top: 6px; font-size: 13px; }
+        .preview-area .action-table th { text-align: left; font-weight: 700; border-bottom: 2px solid var(--border); padding: 4px 8px 4px 0; background: var(--stats-bg); }
+        .preview-area .action-table td { padding: 4px 8px 4px 0; border-bottom: 1px solid var(--border); }
+        .preview-area .label-bold { font-weight: 700; }
+        .toolbar { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+        .toolbar .btn { flex: 1; min-width: 60px; text-align: center; }
+        .locked-overlay { opacity: 0.5; pointer-events: none; user-select: none; }
+        .locked-overlay .btn, .locked-overlay input, .locked-overlay .remove { pointer-events: none !important; opacity: 0.4; }
+        .backup-status { font-size: 12px; color: var(--btn-success); margin-top: 4px; }
+        .mt-1 { margin-top: 8px; }
+        .file-input-label {
+            background: var(--stats-bg);
+            padding: 6px 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            display: inline-block;
+            font-weight: 600;
+            border: 1px solid var(--border);
+            color: var(--text);
+        }
+        .file-input-label input { display: none; }
+        .header-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        .header-row h1 { font-size: 22px; }
+        .import-section {
+            background: var(--stats-bg);
+            border-radius: 10px;
+            padding: 12px;
+            margin-top: 8px;
+            border: 1px solid var(--border);
+        }
+        .import-section textarea {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid var(--input-border);
+            border-radius: 8px;
+            background: var(--input-bg);
+            color: var(--text);
+            font-size: 13px;
+            resize: vertical;
+            min-height: 80px;
+        }
+        .import-section .flex-row { margin-top: 6px; }
+        .import-section .flex-row select { flex: 0 1 auto; min-width: 60px; }
+
+        /* --- PRINT STYLES: PDF LOOKS EXACTLY LIKE PREVIEW --- */
+        @media print {
+            /* Hide everything except the preview card */
+            body { background: white !important; padding: 0 !important; }
+            .container { max-width: 100% !important; }
+            .card:not(.preview-card) { display: none !important; }
+            .preview-card {
+                background: white !important;
+                border: none !important;
+                box-shadow: none !important;
+                padding: 20px !important;
+                margin: 0 !important;
+                border-radius: 0 !important;
+            }
+            .preview-card .toolbar { display: none !important; }
+            .preview-area {
+                background: white !important;
+                border: none !important;
+                border-radius: 0 !important;
+                padding: 0 !important;
+                margin: 0 !important;
+                font-family: 'Times New Roman', Georgia, serif !important;
+                font-size: 14px !important;
+                line-height: 1.5 !important;
+                color: #000 !important;
+            }
+            .preview-area h3 {
+                border-bottom: 2px solid #1f3a5f !important;
+                color: #000 !important;
+            }
+            .preview-area .sub-heading {
+                color: #555 !important;
+                opacity: 1 !important;
+            }
+            .preview-area .meta {
+                color: #000 !important;
+            }
+            .preview-area .section-title {
+                border-bottom: 1px solid #d0d9e6 !important;
+                color: #000 !important;
+            }
+            .preview-area .action-table th {
+                background: #eef4fa !important;
+                border-bottom: 2px solid #1f3a5f !important;
+                color: #000 !important;
+            }
+            .preview-area .action-table td {
+                border-bottom: 1px solid #dce3ed !important;
+                color: #000 !important;
+            }
+            .preview-area .label-bold {
+                font-weight: 700 !important;
+            }
+            .preview-area hr {
+                border-color: #dce3ed !important;
+            }
+            .preview-area ol, .preview-area ul {
+                margin: 4px 0 8px 18px !important;
+            }
+            .preview-area li {
+                padding: 1px 0 !important;
+            }
+            .preview-area strong {
+                color: #000 !important;
+            }
+            .preview-area .meta span {
+                color: #000 !important;
+            }
+            .preview-area .meta strong {
+                color: #000 !important;
+            }
+            .no-print { display: none !important; }
+        }
+
+        @media (max-width: 480px) {
+            .btn { font-size: 12px; padding: 6px 10px; }
+            .flex-row input, .flex-row select { font-size: 13px; padding: 8px 10px; }
+            .card { padding: 12px; }
+            .preview-area { padding: 12px; font-size: 13px; }
+        }
+    </style>
+</head>
+<body>
+<div class="container" id="app">
+    <!-- Header -->
+    <div class="header-row no-print">
+        <h1>📋 Minutes System</h1>
+        <button class="btn btn-outline btn-sm" onclick="toggleTheme()" style="display:flex;align-items:center;gap:4px;">
+            <span id="themeIcon">🌙</span> <span id="themeLabel">Dark</span>
+        </button>
+    </div>
+    <div class="subtitle no-print" style="color:var(--text); opacity:0.7; font-size:13px; margin-bottom:12px;">
+        Auto-backup every 60s · Offline · Dual storage
+    </div>
+
+    <!-- Backup -->
+    <div class="card no-print">
+        <div class="flex-row">
+            <span style="font-weight:600; font-size:14px;">💾 Backup</span>
+            <span id="backupStatus" class="backup-status">Last backup: never</span>
+        </div>
+        <div class="flex-row" style="margin-top:6px;">
+            <button class="btn btn-success btn-sm" onclick="exportBackup()">⬇️ Export</button>
+            <label class="file-input-label btn-sm">
+                📂 Import
+                <input type="file" accept=".json" onchange="importBackup(event)">
+            </label>
+            <button class="btn btn-danger btn-sm" onclick="clearAllData()">🗑️ Clear</button>
+        </div>
+    </div>
+
+    <!-- Group & Meeting Manager -->
+    <div class="card no-print">
+        <div class="flex-row">
+            <span style="font-weight:600; font-size:14px;">📂 Group:</span>
+            <select id="groupSelector" onchange="switchGroup(this.value)"></select>
+            <button class="btn btn-primary btn-sm" onclick="createGroup()">➕</button>
+        </div>
+        <div class="flex-row" style="margin-top:6px;">
+            <span style="font-weight:600; font-size:14px;">📅 Meeting:</span>
+            <select id="meetingSelector" onchange="switchMeeting(this.value)"></select>
+            <button class="btn btn-success btn-sm" onclick="createMeeting()">➕</button>
+            <button class="btn btn-outline btn-sm" onclick="renameCurrentMeeting()" title="Rename Meeting">✏️ Rename</button>
+            <button class="btn btn-outline btn-sm" onclick="toggleLockMeeting()" id="lockToggleBtn">🔒</button>
+        </div>
+        <div id="lockStatus" style="font-size:12px; color:var(--btn-danger); margin-top:4px;"></div>
+        <div style="font-size:12px; color:var(--text); opacity:0.7; margin-top:4px;" id="meetingCountDisplay"></div>
+    </div>
+
+    <!-- Meeting Details -->
+    <div class="card no-print" id="metadataCard">
+        <h2>📅 Meeting Details</h2>
+        <div class="flex-row">
+            <input type="text" id="meetingTopic" placeholder="Meeting name / Topic" style="flex:2;" oninput="updateMetadata('topic')">
+            <input type="date" id="meetingDate" style="flex:1;" onchange="updateDate()">
+        </div>
+        <div class="flex-row" style="margin-top:6px;">
+            <input type="time" id="meetingTime" placeholder="Time" style="flex:1;" oninput="updateMetadata('time')">
+            <input type="text" id="meetingLocation" placeholder="Location" style="flex:2;" oninput="updateMetadata('location')">
+        </div>
+    </div>
+
+    <!-- Members -->
+    <div class="card no-print" id="membersCard">
+        <h2>👥 Members <span style="font-size:13px; font-weight:normal; opacity:0.7; margin-left:auto;">Add individually or import batch</span></h2>
+        <div class="flex-row">
+            <input type="text" id="newMemberName" placeholder="Name" style="flex:1.5;">
+            <input type="text" id="newMemberContact" placeholder="Contact" style="flex:1;">
+            <input type="text" id="newMemberJumuiya" placeholder="Jumuiya" style="flex:1;">
+            <button class="btn btn-primary btn-sm" onclick="addMember()">Add</button>
+            <button class="btn btn-outline btn-sm" onclick="toggleImport()">📥 Batch</button>
+        </div>
+
+        <div id="importSection" class="import-section" style="display:none;">
+            <div style="font-weight:600; margin-bottom:4px;">📋 Import Members</div>
+            <div style="font-size:13px; color:var(--text); opacity:0.7; margin-bottom:4px;">
+                Paste one member per line. Separate fields with the chosen delimiter:<br>
+                <strong>Name</strong> or <strong>Name,Contact</strong> or <strong>Name,Contact,Jumuiya</strong>
+            </div>
+            <textarea id="batchInput" placeholder="John Doe,1234567890,St. Mary&#10;Jane Smith,jane@email.com,St. Joseph"></textarea>
+            <div class="flex-row" style="margin-top:6px;">
+                <span style="font-size:13px;">Delimiter:</span>
+                <select id="delimiterSelect">
+                    <option value=",">Comma</option>
+                    <option value="&#9;">Tab</option>
+                    <option value=";">Semicolon</option>
+                    <option value="|">Pipe</option>
+                    <option value=" ">Space</option>
+                </select>
+                <button class="btn btn-success btn-sm" onclick="importBatch()">Import</button>
+                <button class="btn btn-outline btn-sm" onclick="toggleImport()">Cancel</button>
+            </div>
+            <div id="importResult" style="margin-top:6px; font-size:13px;"></div>
+        </div>
+
+        <div class="member-grid" id="memberGrid"><span class="empty-state">No members.</span></div>
+        <div class="stats-bar">
+            <span>👥 Total: <strong id="totalCount">0</strong></span>
+            <span>✅ Present: <strong id="presentCount">0</strong></span>
+            <span>❌ Absent: <strong id="absentCount">0</strong></span>
+            <span>⚖️ <span id="quorumBadge" class="badge badge-red">NOT MET</span></span>
+        </div>
+    </div>
+
+    <!-- Guests -->
+    <div class="card no-print" id="guestsCard">
+        <h2>👤 Guests</h2>
+        <div class="flex-row">
+            <input type="text" id="guestName" placeholder="Name">
+            <input type="text" id="guestRole" placeholder="Role">
+            <button class="btn btn-success btn-sm" onclick="addGuest()">Add</button>
+        </div>
+        <div id="guestListContainer" class="guest-list" style="margin-top:8px;"><span class="empty-state">No guests.</span></div>
+    </div>
+
+    <!-- Agenda -->
+    <div class="card no-print" id="agendaCard">
+        <h2 id="agendaHeader">📌 Agenda</h2>
+        <div class="flex-row">
+            <input type="text" id="agendaTitle" placeholder="Minute title">
+            <input type="text" id="agendaDecision" placeholder="Decision (optional)">
+            <button class="btn btn-primary btn-sm" onclick="addAgenda()">Add</button>
+        </div>
+        <div style="margin-top:4px;">
+            <textarea id="agendaDiscussion" placeholder="Discussion points (one per line)" style="width:100%; padding:8px; border:1px solid var(--input-border); border-radius:8px; background:var(--input-bg); color:var(--text); font-size:13px; resize:vertical; min-height:50px;"></textarea>
+        </div>
+        <div id="agendaListContainer" style="margin-top:8px;"><span class="empty-state">No agenda items.</span></div>
+    </div>
+
+    <!-- Actions -->
+    <div class="card no-print" id="actionsCard">
+        <h2>✅ Actions</h2>
+        <div class="flex-row">
+            <input type="text" id="actionDesc" placeholder="Action">
+            <input type="text" id="actionOwner" placeholder="Owner">
+            <button class="btn btn-success btn-sm" onclick="addAction()">Add</button>
+        </div>
+        <div class="flex-row" style="margin-top:4px;">
+            <input type="text" id="actionDeadline" placeholder="Deadline" style="flex:1;">
+            <input type="text" id="actionStatus" placeholder="Status" style="flex:1;">
+        </div>
+        <div id="actionListContainer" style="margin-top:8px;"><span class="empty-state">No actions.</span></div>
+    </div>
+
+    <!-- PREVIEW CARD – will be the only card printed -->
+    <div class="card preview-card" id="previewCard">
+        <div class="toolbar no-print" style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom:10px;">
+            <button class="btn btn-primary btn-sm" onclick="generatePreview()">🔄 Refresh</button>
+            <button class="btn btn-outline btn-sm" onclick="saveAsWord()">📄 Word</button>
+            <button class="btn btn-outline btn-sm" onclick="saveAsPDF()">📕 PDF</button>
+            <button class="btn btn-outline btn-sm" onclick="copyPreview()">📋 Copy</button>
+            <button class="btn btn-success btn-sm" onclick="shareWhatsApp()">📱 WhatsApp</button>
+        </div>
+        <div id="previewContainer" class="preview-area">
+            <p style="color:var(--text); opacity:0.6; text-align:center;">Select a group and meeting, then tap Refresh.</p>
+        </div>
+    </div>
+</div>
+
+<script>
+// ================================================================
+// FULL APP WITH BATCH MEMBER IMPORT & INSTANT TIME/LOCATION UPDATE
+// ================================================================
+
+let appState = { groups: {}, currentGroupId: null, currentMeetingId: null };
+let idCounter = 1000;
+
+// ----- Theme -----
+function toggleTheme() {
+    document.body.classList.toggle('dark');
+    const isDark = document.body.classList.contains('dark');
+    localStorage.setItem('minutesTheme', isDark ? 'dark' : 'light');
+    updateThemeUI();
+}
+function updateThemeUI() {
+    const isDark = document.body.classList.contains('dark');
+    document.getElementById('themeIcon').textContent = isDark ? '☀️' : '🌙';
+    document.getElementById('themeLabel').textContent = isDark ? 'Light' : 'Dark';
+}
+function loadTheme() {
+    const saved = localStorage.getItem('minutesTheme');
+    if (saved === 'dark') {
+        document.body.classList.add('dark');
+    } else {
+        document.body.classList.remove('dark');
+    }
+    updateThemeUI();
+}
+loadTheme();
+
+// ----- Load with fallback from backup key -----
+function loadData() {
+    try {
+        let saved = localStorage.getItem('minutesAppData');
+        if (!saved || saved === '{}' || saved === '{"groups":{}}') {
+            const backup = localStorage.getItem('minutesAppData_backup');
+            if (backup && backup !== '{}') {
+                saved = backup;
+                localStorage.setItem('minutesAppData', saved);
+                showToast('⚠️ Restored from backup.');
+            }
+        }
+        if (!saved) { createDefaultData(); return; }
+        const parsed = JSON.parse(saved);
+        if (parsed.groups && typeof parsed.groups === 'object') {
+            appState = parsed;
+            for (const gid in appState.groups) {
+                const g = appState.groups[gid];
+                if (!g.name) g.name = 'Unnamed';
+                if (!g.members) g.members = [];
+                if (!g.meetings) g.meetings = {};
+                for (const mid in g.meetings) {
+                    const m = g.meetings[mid];
+                    if (!m.metadata) m.metadata = { topic: '', date: '', time: '', location: '' };
+                    if (!m.guests) m.guests = [];
+                    if (!m.agenda) m.agenda = [];
+                    if (!m.actions) m.actions = [];
+                    if (m.locked === undefined) m.locked = false;
+                    if (m.number === undefined) m.number = 0;
+                }
+            }
+            const gkeys = Object.keys(appState.groups);
+            if (!appState.currentGroupId || !appState.groups[appState.currentGroupId]) {
+                appState.currentGroupId = gkeys.length > 0 ? gkeys[0] : null;
+            }
+            if (appState.currentGroupId) {
+                const g = appState.groups[appState.currentGroupId];
+                const mkeys = Object.keys(g.meetings);
+                if (!appState.currentMeetingId || !g.meetings[appState.currentMeetingId]) {
+                    appState.currentMeetingId = mkeys.length > 0 ? mkeys[0] : null;
+                }
+            }
+            saveData();
+            return;
+        }
+        createDefaultData();
+    } catch(e) { console.warn('Load error', e); createDefaultData(); }
+
+    let maxId = 1000;
+    for (const gid in appState.groups) {
+        const g = appState.groups[gid];
+        const allIds = [
+            ...g.members.map(x => x.id || 0),
+            ...Object.values(g.meetings).flatMap(m => [
+                ...m.guests.map(x => x.id || 0),
+                ...m.agenda.map(x => x.id || 0),
+                ...m.actions.map(x => x.id || 0)
+            ])
+        ];
+        const maxLocal = Math.max(0, ...allIds);
+        if (maxLocal > maxId) maxId = maxLocal;
+    }
+    idCounter = maxId + 1;
+}
+
+function createDefaultData() {
+    const gid = 'group_' + Date.now();
+    const mid = 'meeting_' + Date.now();
+    const today = new Date().toISOString().slice(0,10);
+    appState.groups = {
+        [gid]: {
+            name: 'My Committee',
+            members: [],
+            meetings: {
+                [mid]: {
+                    name: 'Meeting 1',
+                    number: 1,
+                    metadata: { topic: '', date: today, time: '', location: '' },
+                    guests: [], agenda: [], actions: [], locked: false
+                }
+            }
+        }
+    };
+    appState.currentGroupId = gid;
+    appState.currentMeetingId = mid;
+    saveData();
+}
+
+function saveData() {
+    try {
+        const json = JSON.stringify(appState);
+        localStorage.setItem('minutesAppData', json);
+        localStorage.setItem('minutesAppData_backup', json);
+        updateBackupStatus();
+    } catch(e) { console.warn('Save error', e); }
+}
+
+function updateBackupStatus() {
+    const now = new Date();
+    const timeStr = now.toLocaleTimeString();
+    document.getElementById('backupStatus').textContent = `Last backup: ${timeStr}`;
+}
+
+// ----- Export / Import -----
+function exportBackup() {
+    const data = localStorage.getItem('minutesAppData');
+    if (!data) { alert('No data to export.'); return; }
+    const blob = new Blob([data], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `minutes_backup_${new Date().toISOString().slice(0,10)}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    showToast('✅ Backup exported.');
+}
+
+function importBackup(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        try {
+            const imported = JSON.parse(e.target.result);
+            if (!imported.groups) { alert('Invalid backup file.'); return; }
+            appState = imported;
+            const gkeys = Object.keys(appState.groups);
+            if (!appState.currentGroupId || !appState.groups[appState.currentGroupId]) {
+                appState.currentGroupId = gkeys.length > 0 ? gkeys[0] : null;
+            }
+            if (appState.currentGroupId) {
+                const g = appState.groups[appState.currentGroupId];
+                const mkeys = Object.keys(g.meetings);
+                if (!appState.currentMeetingId || !g.meetings[appState.currentMeetingId]) {
+                    appState.currentMeetingId = mkeys.length > 0 ? mkeys[0] : null;
+                }
+            }
+            saveData();
+            populateSelectors();
+            loadMeetingIntoUI(appState.currentMeetingId);
+            generatePreview();
+            showToast('✅ Import successful!');
+        } catch(err) {
+            alert('Error importing: ' + err.message);
+        }
+    };
+    reader.readAsText(file);
+    event.target.value = '';
+}
+
+function clearAllData() {
+    if (!confirm('⚠️ Delete ALL data? This cannot be undone.')) return;
+    localStorage.removeItem('minutesAppData');
+    localStorage.removeItem('minutesAppData_backup');
+    createDefaultData();
+    populateSelectors();
+    loadMeetingIntoUI(appState.currentMeetingId);
+    generatePreview();
+    showToast('🗑️ Data cleared.');
+}
+
+function showToast(msg) {
+    const el = document.createElement('div');
+    el.style.cssText = 'position:fixed;bottom:70px;left:20px;right:20px;background:var(--card);color:var(--text);padding:12px 20px;border-radius:12px;text-align:center;font-weight:600;z-index:9999;border:1px solid var(--border);box-shadow:0 4px 12px var(--shadow);';
+    el.textContent = msg;
+    document.body.appendChild(el);
+    setTimeout(() => el.remove(), 3000);
+}
+
+// ----- Helpers -----
+function getCurrentGroup() {
+    if (!appState.currentGroupId || !appState.groups[appState.currentGroupId]) return null;
+    return appState.groups[appState.currentGroupId];
+}
+function getCurrentMeeting() {
+    const g = getCurrentGroup();
+    if (!g) return null;
+    if (!appState.currentMeetingId || !g.meetings[appState.currentMeetingId]) {
+        const keys = Object.keys(g.meetings);
+        if (keys.length > 0) {
+            appState.currentMeetingId = keys[0];
+            saveData();
+            return g.meetings[keys[0]];
+        }
+        return null;
+    }
+    return g.meetings[appState.currentMeetingId];
+}
+function getCurrentMeetingId() { return appState.currentMeetingId; }
+function getCurrentGroupId() { return appState.currentGroupId; }
+function getGroupName(id) { const g = appState.groups[id]; return g ? g.name || 'Unnamed' : 'Unnamed'; }
+function getMeetingName(gid, mid) {
+    const g = appState.groups[gid];
+    if (!g) return 'Untitled';
+    const m = g.meetings[mid];
+    if (!m) return 'Untitled';
+    if (m.name) return m.name;
+    const date = m.metadata?.date || '';
+    const topic = m.metadata?.topic?.trim() || 'Meeting';
+    return date ? `${topic} (${date})` : topic;
+}
+
+function getNextMinuteNumber(groupId, dateStr) {
+    const group = appState.groups[groupId];
+    if (!group) return 1;
+    const date = new Date(dateStr);
+    if (isNaN(date.getTime())) return 1;
+    const month = date.getMonth();
+    const year = date.getFullYear();
+    let maxNum = 0;
+    for (const mid in group.meetings) {
+        const m = group.meetings[mid];
+        const mDate = m.metadata?.date ? new Date(m.metadata.date) : null;
+        if (mDate && mDate.getMonth() === month && mDate.getFullYear() === year) {
+            if (m.number && m.number > maxNum) maxNum = m.number;
+        }
+    }
+    return maxNum + 1;
+}
+
+function updateAgendaHeader() {
+    const meeting = getCurrentMeeting();
+    const header = document.getElementById('agendaHeader');
+    if (!meeting || !meeting.number || !meeting.metadata?.date) {
+        header.textContent = '📌 Agenda';
+        return;
+    }
+    const dateObj = new Date(meeting.metadata.date);
+    if (isNaN(dateObj.getTime())) {
+        header.textContent = '📌 Agenda';
+        return;
+    }
+    const month = String(dateObj.getMonth() + 1).padStart(2,'0');
+    const year = dateObj.getFullYear();
+    const num = String(meeting.number).padStart(2,'0');
+    header.textContent = `📌 Agenda (Min ${num}/${month}/${year})`;
+}
+
+// ----- UI Population -----
+function populateSelectors() {
+    const groupSel = document.getElementById('groupSelector');
+    const meetingSel = document.getElementById('meetingSelector');
+    const cgid = getCurrentGroupId();
+    const cmid = getCurrentMeetingId();
+
+    groupSel.innerHTML = '';
+    const gkeys = Object.keys(appState.groups);
+    if (gkeys.length === 0) {
+        const opt = document.createElement('option');
+        opt.value = '';
+        opt.textContent = '— No groups —';
+        groupSel.appendChild(opt);
+    } else {
+        gkeys.forEach(id => {
+            const opt = document.createElement('option');
+            opt.value = id;
+            opt.textContent = getGroupName(id);
+            if (id === cgid) opt.selected = true;
+            groupSel.appendChild(opt);
+        });
+    }
+
+    meetingSel.innerHTML = '';
+    const group = getCurrentGroup();
+    if (!group || Object.keys(group.meetings).length === 0) {
+        const opt = document.createElement('option');
+        opt.value = '';
+        opt.textContent = '— No meetings —';
+        meetingSel.appendChild(opt);
+    } else {
+        const mkeys = Object.keys(group.meetings);
+        mkeys.forEach(id => {
+            const opt = document.createElement('option');
+            opt.value = id;
+            const m = group.meetings[id];
+            const lockMark = m.locked ? ' 🔒' : '';
+            const num = m.number ? `#${String(m.number).padStart(2,'0')}` : '';
+            opt.textContent = `${num} ${getMeetingName(cgid, id)}${lockMark}`;
+            if (id === cmid) opt.selected = true;
+            meetingSel.appendChild(opt);
+        });
+    }
+
+    document.getElementById('meetingCountDisplay').textContent = 
+        group ? `📅 ${Object.keys(group.meetings).length} meeting(s) in "${getGroupName(cgid)}"` : 'No group selected';
+    updateLockUI();
+    updateAgendaHeader();
+}
+
+function updateLockUI() {
+    const meeting = getCurrentMeeting();
+    const locked = meeting ? meeting.locked : false;
+    const btn = document.getElementById('lockToggleBtn');
+    btn.textContent = locked ? '🔓' : '🔒';
+    btn.className = locked ? 'btn btn-danger btn-sm' : 'btn btn-outline btn-sm';
+    document.getElementById('lockStatus').textContent = locked ? '🔒 Locked (read-only)' : '';
+
+    const cards = ['metadataCard', 'membersCard', 'guestsCard', 'agendaCard', 'actionsCard'];
+    cards.forEach(id => {
+        const el = document.getElementById(id);
+        if (locked && meeting) el.classList.add('locked-overlay');
+        else el.classList.remove('locked-overlay');
+    });
+}
+
+// ----- Toggle Import Section -----
+function toggleImport() {
+    const section = document.getElementById('importSection');
+    if (section.style.display === 'none') {
+        section.style.display = 'block';
+    } else {
+        section.style.display = 'none';
+    }
+}
+
+// ----- Batch Import -----
+function importBatch() {
+    const group = getCurrentGroup();
+    if (!group) { alert('Select a group first.'); return; }
+    const meeting = getCurrentMeeting();
+    if (meeting && meeting.locked) { alert('Meeting locked.'); return; }
+
+    const input = document.getElementById('batchInput');
+    const delimiter = document.getElementById('delimiterSelect').value;
+    const actualDelimiter = delimiter === '&#9;' ? '\t' : delimiter;
+    const lines = input.value.split('\n').filter(line => line.trim() !== '');
+    let added = 0;
+    const errors = [];
+
+    for (const line of lines) {
+        const parts = line.split(actualDelimiter).map(s => s.trim());
+        let name = parts[0] || '';
+        let contact = parts[1] || '';
+        let jumuiya = parts[2] || '';
+        if (parts.length > 3) {
+            jumuiya = parts.slice(2).join(',').trim();
+        }
+        if (name === '') {
+            errors.push(`Skipped empty name in line: "${line}"`);
+            continue;
+        }
+        group.members.push({
+            id: idCounter++,
+            name: name,
+            contact: contact,
+            jumuiya: jumuiya,
+            present: false
+        });
+        added++;
+    }
+
+    if (added > 0) {
+        renderMembers();
+        saveData();
+        showToast(`✅ Imported ${added} member(s).`);
+    } else {
+        showToast('⚠️ No valid members found to import.');
+    }
+    if (errors.length > 0) {
+        alert('Errors:\n' + errors.join('\n'));
+    }
+}
+
+// ----- Group / Meeting ops -----
+function switchGroup(id) {
+    if (id && appState.groups[id]) {
+        saveCurrentMeetingFromUI();
+        appState.currentGroupId = id;
+        const g = appState.groups[id];
+        const mkeys = Object.keys(g.meetings);
+        appState.currentMeetingId = mkeys.length > 0 ? mkeys[0] : null;
+        saveData();
+        populateSelectors();
+        loadMeetingIntoUI(appState.currentMeetingId);
+        generatePreview();
+        updateLockUI();
+    }
+}
+function switchMeeting(id) {
+    if (id) {
+        saveCurrentMeetingFromUI();
+        appState.currentMeetingId = id;
+        saveData();
+        populateSelectors();
+        loadMeetingIntoUI(id);
+        generatePreview();
+        updateLockUI();
+    }
+}
+function createGroup() {
+    const name = prompt('Enter group name:', 'New Group');
+    if (name === null) return;
+    const trimmed = name.trim() || 'Unnamed';
+    const gid = 'group_' + Date.now();
+    const mid = 'meeting_' + Date.now();
+    const today = new Date().toISOString().slice(0,10);
+    appState.groups[gid] = {
+        name: trimmed,
+        members: [],
+        meetings: {
+            [mid]: {
+                name: 'Meeting 1',
+                number: 1,
+                metadata: { topic: '', date: today, time: '', location: '' },
+                guests: [], agenda: [], actions: [], locked: false
+            }
+        }
+    };
+    appState.currentGroupId = gid;
+    appState.currentMeetingId = mid;
+    saveData();
+    populateSelectors();
+    loadMeetingIntoUI(mid);
+    generatePreview();
+    showToast('✅ Group created.');
+}
+function createMeeting() {
+    const group = getCurrentGroup();
+    if (!group) { alert('Select a group first.'); return; }
+    const name = prompt('Enter meeting name:', 'Meeting ' + (Object.keys(group.meetings).length + 1));
+    if (name === null) return;
+    const trimmed = name.trim() || 'Untitled';
+    const mid = 'meeting_' + Date.now();
+    const today = new Date().toISOString().slice(0,10);
+    const nextNum = getNextMinuteNumber(getCurrentGroupId(), today);
+    group.meetings[mid] = {
+        name: trimmed,
+        number: nextNum,
+        metadata: { topic: '', date: today, time: '', location: '' },
+        guests: [], agenda: [], actions: [], locked: false
+    };
+    appState.currentMeetingId = mid;
+    saveData();
+    populateSelectors();
+    loadMeetingIntoUI(mid);
+    generatePreview();
+    showToast('✅ Meeting created.');
+}
+function deleteCurrentMeeting() {
+    const group = getCurrentGroup();
+    if (!group) return;
+    const id = getCurrentMeetingId();
+    if (!id || !group.meetings[id]) return;
+    if (!confirm('Delete this meeting?')) return;
+    delete group.meetings[id];
+    const keys = Object.keys(group.meetings);
+    appState.currentMeetingId = keys.length > 0 ? keys[0] : null;
+    saveData();
+    populateSelectors();
+    if (appState.currentMeetingId) {
+        loadMeetingIntoUI(appState.currentMeetingId);
+        generatePreview();
+    } else {
+        showEmptyState();
+    }
+    updateLockUI();
+}
+function renameCurrentMeeting() {
+    const group = getCurrentGroup();
+    if (!group) return;
+    const id = getCurrentMeetingId();
+    if (!id || !group.meetings[id]) return;
+    const current = getMeetingName(getCurrentGroupId(), id);
+    const newName = prompt('Rename meeting:', current);
+    if (newName === null) return;
+    group.meetings[id].name = newName.trim() || 'Untitled';
+    saveData();
+    populateSelectors();
+    const meta = group.meetings[id].metadata;
+    if (!meta.topic || meta.topic.trim() === '') {
+        meta.topic = newName.trim();
+        document.getElementById('meetingTopic').value = meta.topic;
+    }
+    showToast('✅ Meeting renamed.');
+}
+function toggleLockMeeting() {
+    const meeting = getCurrentMeeting();
+    if (!meeting) return;
+    meeting.locked = !meeting.locked;
+    saveData();
+    populateSelectors();
+    updateLockUI();
+    loadMeetingIntoUI(getCurrentMeetingId());
+    generatePreview();
+}
+
+// ----- Load/Save UI -----
+function saveCurrentMeetingFromUI() {
+    const meeting = getCurrentMeeting();
+    if (!meeting) return;
+    meeting.metadata.topic = document.getElementById('meetingTopic').value;
+    meeting.metadata.date = document.getElementById('meetingDate').value;
+    meeting.metadata.time = document.getElementById('meetingTime').value;
+    meeting.metadata.location = document.getElementById('meetingLocation').value;
+    saveData();
+}
+function loadMeetingIntoUI(id) {
+    const meeting = getCurrentMeeting();
+    if (!meeting) { showEmptyState(); return; }
+    document.getElementById('meetingTopic').value = meeting.metadata.topic || '';
+    document.getElementById('meetingDate').value = meeting.metadata.date || '';
+    document.getElementById('meetingTime').value = meeting.metadata.time || '';
+    document.getElementById('meetingLocation').value = meeting.metadata.location || '';
+    renderMembers();
+    renderGuests();
+    renderAgenda();
+    renderActions();
+    updateStats();
+    updateLockUI();
+    updateAgendaHeader();
+}
+function showEmptyState() {
+    document.getElementById('meetingTopic').value = '';
+    document.getElementById('meetingDate').value = '';
+    document.getElementById('meetingTime').value = '';
+    document.getElementById('meetingLocation').value = '';
+    document.getElementById('memberGrid').innerHTML = '<span class="empty-state">No members.</span>';
+    document.getElementById('guestListContainer').innerHTML = '<span class="empty-state">No guests.</span>';
+    document.getElementById('agendaListContainer').innerHTML = '<span class="empty-state">No agenda items.</span>';
+    document.getElementById('actionListContainer').innerHTML = '<span class="empty-state">No actions.</span>';
+    document.getElementById('previewContainer').innerHTML = '<p style="color:var(--text); opacity:0.6; text-align:center;">Select a group and meeting.</p>';
+    updateStats();
+    updateAgendaHeader();
+}
+
+// ----- Render functions -----
+function renderMembers() {
+    const group = getCurrentGroup();
+    const grid = document.getElementById('memberGrid');
+    if (!group || group.members.length === 0) {
+        grid.innerHTML = '<span class="empty-state">No members.</span>';
+    } else {
+        grid.innerHTML = group.members.map(m => `
+            <div class="member-tag">
+                <input type="checkbox" ${m.present ? 'checked' : ''} onchange="togglePresent(${m.id})">
+                <span>${escapeHtml(m.name)}</span>
+                ${m.jumuiya ? `<span style="opacity:0.6;">(${escapeHtml(m.jumuiya)})</span>` : ''}
+                <span class="edit-contact" onclick="editContact(${m.id})">✎</span>
+                <span class="remove" onclick="removeMember(${m.id})">✕</span>
+            </div>
+        `).join('');
+    }
+    updateStats();
+    saveData();
+}
+function updateStats() {
+    const group = getCurrentGroup();
+    const total = group ? group.members.length : 0;
+    const present = group ? group.members.filter(m => m.present).length : 0;
+    const absent = total - present;
+    const quorumMet = present > (total / 2);
+    document.getElementById('totalCount').textContent = total;
+    document.getElementById('presentCount').textContent = present;
+    document.getElementById('absentCount').textContent = absent;
+    const badge = document.getElementById('quorumBadge');
+    if (total === 0) {
+        badge.textContent = 'N/A';
+        badge.className = 'badge';
+    } else if (quorumMet) {
+        badge.textContent = `✅ MET (${present}/${total})`;
+        badge.className = 'badge badge-green';
+    } else {
+        badge.textContent = `❌ NOT MET (${present}/${total} >${Math.floor(total/2)})`;
+        badge.className = 'badge badge-red';
+    }
+}
+function renderGuests() {
+    const meeting = getCurrentMeeting();
+    const container = document.getElementById('guestListContainer');
+    if (!meeting || meeting.guests.length === 0) {
+        container.innerHTML = '<span class="empty-state">No guests.</span>';
+    } else {
+        container.innerHTML = meeting.guests.map(g => `
+            <div class="guest-item">
+                <span style="font-weight:500;">${escapeHtml(g.name)}</span>
+                <span style="opacity:0.7;">${escapeHtml(g.role || 'Guest')}</span>
+                <button class="btn btn-danger btn-sm" onclick="removeGuest(${g.id})">✕</button>
+            </div>
+        `).join('');
+    }
+    saveData();
+}
+function renderAgenda() {
+    const meeting = getCurrentMeeting();
+    const container = document.getElementById('agendaListContainer');
+    if (!meeting || meeting.agenda.length === 0) {
+        container.innerHTML = '<span class="empty-state">No agenda items.</span>';
+    } else {
+        container.innerHTML = meeting.agenda.map(a => `
+            <div class="agenda-item">
+                <input type="text" value="${escapeHtml(a.title)}" placeholder="Title" onchange="updateAgenda(${a.id}, 'title', this.value)">
+                <textarea placeholder="Discussion points" onchange="updateAgenda(${a.id}, 'discussion', this.value)">${escapeHtml(a.discussion || '')}</textarea>
+                <input type="text" value="${escapeHtml(a.decision || '')}" placeholder="Decision (optional)" onchange="updateAgenda(${a.id}, 'decision', this.value)">
+                <button class="btn btn-danger btn-sm" onclick="removeAgenda(${a.id})">✕</button>
+            </div>
+        `).join('');
+    }
+    saveData();
+}
+function renderActions() {
+    const meeting = getCurrentMeeting();
+    const container = document.getElementById('actionListContainer');
+    if (!meeting || meeting.actions.length === 0) {
+        container.innerHTML = '<span class="empty-state">No actions.</span>';
+    } else {
+        container.innerHTML = meeting.actions.map(a => `
+            <div class="action-item">
+                <input type="text" value="${escapeHtml(a.description)}" placeholder="Action" onchange="updateAction(${a.id}, 'description', this.value)">
+                <input type="text" value="${escapeHtml(a.owner)}" placeholder="Owner" onchange="updateAction(${a.id}, 'owner', this.value)">
+                <input type="text" value="${escapeHtml(a.deadline)}" placeholder="Deadline" onchange="updateAction(${a.id}, 'deadline', this.value)">
+                <input type="text" value="${escapeHtml(a.status || '')}" placeholder="Status" onchange="updateAction(${a.id}, 'status', this.value)">
+                <button class="btn btn-danger btn-sm" onclick="removeAction(${a.id})">✕</button>
+            </div>
+        `).join('');
+    }
+    saveData();
+}
+
+// ----- Mutations -----
+function addMember() {
+    const group = getCurrentGroup();
+    if (!group) { alert('Select a group first.'); return; }
+    const meeting = getCurrentMeeting();
+    if (meeting && meeting.locked) { alert('Meeting locked.'); return; }
+    const name = document.getElementById('newMemberName').value.trim();
+    const contact = document.getElementById('newMemberContact').value.trim();
+    const jumuiya = document.getElementById('newMemberJumuiya').value.trim();
+    if (!name) { alert('Enter a name.'); return; }
+    group.members.push({ id: idCounter++, name, contact, jumuiya, present: false });
+    document.getElementById('newMemberName').value = '';
+    document.getElementById('newMemberContact').value = '';
+    document.getElementById('newMemberJumuiya').value = '';
+    renderMembers();
+    saveData();
+}
+function editContact(id) {
+    const group = getCurrentGroup();
+    if (!group) return;
+    const meeting = getCurrentMeeting();
+    if (meeting && meeting.locked) { alert('Locked.'); return; }
+    const member = group.members.find(m => m.id === id);
+    if (!member) return;
+    const newContact = prompt('Contact for ' + member.name + ':', member.contact || '');
+    if (newContact !== null) {
+        member.contact = newContact.trim();
+        saveData();
+        renderMembers();
+    }
+}
+function removeMember(id) {
+    const group = getCurrentGroup();
+    if (!group) return;
+    const meeting = getCurrentMeeting();
+    if (meeting && meeting.locked) { alert('Locked.'); return; }
+    if (!confirm('Remove member?')) return;
+    group.members = group.members.filter(m => m.id !== id);
+    renderMembers();
+    saveData();
+}
+function togglePresent(id) {
+    const group = getCurrentGroup();
+    if (!group) return;
+    const meeting = getCurrentMeeting();
+    if (meeting && meeting.locked) { alert('Locked.'); return; }
+    const member = group.members.find(m => m.id === id);
+    if (member) {
+        member.present = !member.present;
+        renderMembers();
+        saveData();
+    }
+}
+function addGuest() {
+    const meeting = getCurrentMeeting();
+    if (!meeting) { alert('Select a meeting.'); return; }
+    if (meeting.locked) { alert('Locked.'); return; }
+    const name = document.getElementById('guestName').value.trim();
+    const role = document.getElementById('guestRole').value.trim();
+    if (!name) { alert('Enter a name.'); return; }
+    meeting.guests.push({ id: idCounter++, name, role: role || 'Guest' });
+    document.getElementById('guestName').value = '';
+    document.getElementById('guestRole').value = '';
+    renderGuests();
+    saveData();
+}
+function removeGuest(id) {
+    const meeting = getCurrentMeeting();
+    if (!meeting || meeting.locked) return;
+    meeting.guests = meeting.guests.filter(g => g.id !== id);
+    renderGuests();
+    saveData();
+}
+function addAgenda() {
+    const meeting = getCurrentMeeting();
+    if (!meeting) { alert('Select a meeting.'); return; }
+    if (meeting.locked) { alert('Locked.'); return; }
+    const title = document.getElementById('agendaTitle').value.trim();
+    const decision = document.getElementById('agendaDecision').value.trim();
+    const discussion = document.getElementById('agendaDiscussion').value.trim();
+    if (!title) { alert('Enter a title.'); return; }
+    meeting.agenda.push({ id: idCounter++, title, discussion, decision });
+    document.getElementById('agendaTitle').value = '';
+    document.getElementById('agendaDecision').value = '';
+    document.getElementById('agendaDiscussion').value = '';
+    renderAgenda();
+    saveData();
+}
+function updateAgenda(id, field, value) {
+    const meeting = getCurrentMeeting();
+    if (!meeting || meeting.locked) return;
+    const item = meeting.agenda.find(a => a.id === id);
+    if (item) { item[field] = value; saveData(); }
+}
+function removeAgenda(id) {
+    const meeting = getCurrentMeeting();
+    if (!meeting || meeting.locked) return;
+    meeting.agenda = meeting.agenda.filter(a => a.id !== id);
+    renderAgenda();
+    saveData();
+}
+function addAction() {
+    const meeting = getCurrentMeeting();
+    if (!meeting) { alert('Select a meeting.'); return; }
+    if (meeting.locked) { alert('Locked.'); return; }
+    const desc = document.getElementById('actionDesc').value.trim();
+    const owner = document.getElementById('actionOwner').value.trim();
+    const deadline = document.getElementById('actionDeadline').value.trim();
+    const status = document.getElementById('actionStatus').value.trim();
+    if (!desc) { alert('Enter an action.'); return; }
+    meeting.actions.push({ id: idCounter++, description: desc, owner: owner || 'TBD', deadline: deadline || 'TBD', status: status || '' });
+    document.getElementById('actionDesc').value = '';
+    document.getElementById('actionOwner').value = '';
+    document.getElementById('actionDeadline').value = '';
+    document.getElementById('actionStatus').value = '';
+    renderActions();
+    saveData();
+}
+function updateAction(id, field, value) {
+    const meeting = getCurrentMeeting();
+    if (!meeting || meeting.locked) return;
+    const item = meeting.actions.find(a => a.id === id);
+    if (item) { item[field] = value; saveData(); }
+}
+function removeAction(id) {
+    const meeting = getCurrentMeeting();
+    if (!meeting || meeting.locked) return;
+    meeting.actions = meeting.actions.filter(a => a.id !== id);
+    renderActions();
+    saveData();
+}
+
+// ================================================================
+// INSTANT UPDATE for Time & Location
+// ================================================================
+
+function updateMetadata(field) {
+    const meeting = getCurrentMeeting();
+    if (!meeting) return;
+    const value = document.getElementById(field === 'topic' ? 'meetingTopic' : 
+                                        field === 'time' ? 'meetingTime' : 'meetingLocation').value;
+    if (field === 'topic') {
+        meeting.metadata.topic = value;
+        if (!meeting.name || meeting.name === '' || meeting.name === 'Untitled' || meeting.name === 'Meeting') {
+            meeting.name = value || 'Meeting';
+        }
+        populateSelectors();
+    } else if (field === 'time') {
+        meeting.metadata.time = value;
+    } else if (field === 'location') {
+        meeting.metadata.location = value;
+    }
+    saveData();
+    generatePreview(); // Refresh preview instantly
+}
+
+function updateDate() {
+    const meeting = getCurrentMeeting();
+    if (!meeting) return;
+    const newDate = document.getElementById('meetingDate').value;
+    meeting.metadata.date = newDate;
+    const groupId = getCurrentGroupId();
+    if (groupId) {
+        const nextNum = getNextMinuteNumber(groupId, newDate);
+        meeting.number = nextNum;
+        saveData();
+        populateSelectors();
+        updateAgendaHeader();
+        generatePreview();
+    }
+}
+
+// ----- PREVIEW -----
+function generatePreview() {
+    const container = document.getElementById('previewContainer');
+    const meeting = getCurrentMeeting();
+    const group = getCurrentGroup();
+    if (!meeting || !group) {
+        container.innerHTML = '<p style="color:var(--text); opacity:0.6; text-align:center;">Select a group and meeting.</p>';
+        return;
+    }
+    const { members } = group;
+    const { guests, agenda, actions, metadata, number } = meeting;
+    const total = members.length;
+    const present = members.filter(m => m.present);
+    const absent = members.filter(m => !m.present);
+    const quorumMet = present.length > (total / 2);
+    const groupName = group.name || 'SUBCOMMITTEE';
+    const topic = metadata.topic ? metadata.topic.trim() : groupName;
+
+    const heading = topic || 'MINUTES';
+    let minuteSub = '';
+    if (number && metadata.date) {
+        const dateObj = new Date(metadata.date);
+        if (!isNaN(dateObj.getTime())) {
+            const month = String(dateObj.getMonth() + 1).padStart(2,'0');
+            const year = dateObj.getFullYear();
+            minuteSub = `Min ${String(number).padStart(2,'0')}/${month}/${year}`;
+        }
+    }
+
+    let agendaMonth = '';
+    if (metadata.date) {
+        const dateObj = new Date(metadata.date);
+        if (!isNaN(dateObj.getTime())) {
+            agendaMonth = String(dateObj.getMonth() + 1).padStart(2,'0');
+        }
+    }
+
+    let presentHtml = 'None';
+    if (present.length > 0) {
+        presentHtml = `<ol>${present.map(m => {
+            const contact = m.contact ? ` (${escapeHtml(m.contact)})` : '';
+            const jumuiya = m.jumuiya ? ` [${escapeHtml(m.jumuiya)}]` : '';
+            return `<li>${escapeHtml(m.name)}${contact}${jumuiya}</li>`;
+        }).join('')}</ol>`;
+    }
+    let absentHtml = 'None';
+    if (absent.length > 0) {
+        absentHtml = `<ol>${absent.map(m => {
+            const contact = m.contact ? ` (${escapeHtml(m.contact)})` : '';
+            const jumuiya = m.jumuiya ? ` [${escapeHtml(m.jumuiya)}]` : '';
+            return `<li>${escapeHtml(m.name)}${contact}${jumuiya}</li>`;
+        }).join('')}</ol>`;
+    }
+    let guestHtml = 'None';
+    if (guests.length > 0) {
+        guestHtml = `<ol>${guests.map(g => `<li>${escapeHtml(g.name)} (${escapeHtml(g.role || 'Guest')})</li>`).join('')}</ol>`;
+    }
+
+    const dateStr = metadata.date || '[Date]';
+    const timeStr = metadata.time || '[Time]';
+    const locationStr = metadata.location || '[Location]';
+
+    let html = `
+        <h3>${escapeHtml(heading)}</h3>
+        ${minuteSub ? `<div class="sub-heading">${escapeHtml(minuteSub)}</div>` : ''}
+        <div class="meta">
+            <span><strong>Group:</strong> ${escapeHtml(groupName)}</span>
+            <span><strong>Date:</strong> ${escapeHtml(dateStr)}</span>
+            <span><strong>Time:</strong> ${escapeHtml(timeStr)}</span>
+            <span><strong>Location:</strong> ${escapeHtml(locationStr)}</span>
+        </div>
+        <div><strong>MEMBERS PRESENT (Voting):</strong> (${present.length}/${total})</div>
+        ${presentHtml}
+        <div><strong>MEMBERS ABSENT (Voting):</strong> (${absent.length}/${total})</div>
+        ${absentHtml}
+        <div><strong>OTHERS IN ATTENDANCE (Non-Voting):</strong> (${guests.length})</div>
+        ${guestHtml}
+        <div><strong>QUORUM:</strong> ${quorumMet ? '✅ MET' : '❌ NOT MET'} (Need >${Math.floor(total/2)} present)</div>
+        <hr style="margin:16px 0; border-color:var(--border);">
+    `;
+
+    if (agenda.length > 0) {
+        html += `<div class="section-title" style="font-weight:700; font-size:17px; margin-top:18px; margin-bottom:6px; border-bottom:1px solid var(--border); padding-bottom:3px;">AGENDA & DECISIONS</div>`;
+        agenda.forEach((a, idx) => {
+            const num = String(idx + 1).padStart(2, '0');
+            const label = agendaMonth ? `Min ${num}/${agendaMonth}` : `${idx+1}.`;
+            let discussionHtml = '—';
+            if (a.discussion) {
+                const lines = a.discussion.split('\n').filter(line => line.trim() !== '');
+                if (lines.length > 0) {
+                    discussionHtml = `<ul>${lines.map(line => `<li>${escapeHtml(line)}</li>`).join('')}</ul>`;
+                }
+            }
+            let decisionHtml = '';
+            if (a.decision && a.decision.trim() !== '') {
+                decisionHtml = `<br><span class="label-bold">Decision:</span> <strong>${escapeHtml(a.decision.trim())}</strong>`;
+            }
+            html += `
+                <div style="margin-bottom:10px;">
+                    <strong>${label}: ${escapeHtml(a.title)}</strong>
+                    <div style="margin-left:4px; color:var(--text);">
+                        ${discussionHtml}
+                        ${decisionHtml}
+                    </div>
+                </div>
+            `;
+        });
+    } else {
+        html += `<div class="section-title" style="font-weight:700; font-size:17px; margin-top:18px; margin-bottom:6px; border-bottom:1px solid var(--border); padding-bottom:3px;">AGENDA & DECISIONS</div><p>No agenda items recorded.</p>`;
+    }
+
+    if (actions.length > 0) {
+        html += `<div class="section-title" style="font-weight:700; font-size:17px; margin-top:20px; margin-bottom:6px; border-bottom:1px solid var(--border); padding-bottom:3px;">ACTION LOG</div>
+        <table class="action-table">
+            <thead><tr><th>Action Item</th><th>Owner</th><th>Deadline</th><th>Status</th></tr></thead>
+            <tbody>`;
+        actions.forEach(a => {
+            const status = a.status ? escapeHtml(a.status) : '';
+            html += `<tr><td>${escapeHtml(a.description)}</td><td>${escapeHtml(a.owner)}</td><td>${escapeHtml(a.deadline)}</td><td>${status}</td></tr>`;
+        });
+        html += `</tbody></table>`;
+    } else {
+        html += `<div class="section-title" style="font-weight:700; font-size:17px; margin-top:20px; margin-bottom:6px; border-bottom:1px solid var(--border); padding-bottom:3px;">ACTION LOG</div><p>No action items recorded.</p>`;
+    }
+
+    html += `
+        <hr style="margin:20px 0; border-color:var(--border);">
+        <div style="display:flex; justify-content:space-between; font-size:14px; opacity:0.8;">
+            <span><strong>Submitted by:</strong> [Secretary Name]</span>
+            <span><strong>Approved by:</strong> [Chair / Co-Chair Names]</span>
+        </div>
+    `;
+    container.innerHTML = html;
+}
+
+// ----- Export/Share -----
+function saveAsWord() {
+    const preview = document.getElementById('previewContainer');
+    const content = preview.innerHTML;
+    const styles = `
+        body { font-family: 'Times New Roman', Georgia, serif; line-height: 1.6; padding: 40px; }
+        h3 { font-size: 22px; text-align: center; font-weight: 700; border-bottom: 2px solid #1f3a5f; padding-bottom: 10px; margin-bottom: 6px; }
+        .sub-heading { text-align: center; font-size: 15px; color: #555; margin-bottom: 12px; }
+        .meta { display: flex; justify-content: space-between; flex-wrap: wrap; font-size: 15px; margin-bottom: 18px; }
+        .section-title { font-weight: 700; font-size: 17px; margin-top: 18px; margin-bottom: 6px; border-bottom: 1px solid #d0d9e6; padding-bottom: 3px; }
+        ol { margin: 4px 0 8px 22px; }
+        ul { margin: 4px 0 8px 18px; }
+        li { padding: 2px 0; }
+        .action-table { width: 100%; border-collapse: collapse; margin-top: 6px; }
+        .action-table th { text-align: left; font-weight: 700; border-bottom: 2px solid #1f3a5f; padding: 6px 12px 6px 0; background: #eef4fa; }
+        .action-table td { padding: 6px 12px 6px 0; border-bottom: 1px solid #dce3ed; }
+        .label-bold { font-weight: 700; }
+        strong { font-weight: 700; }
+        hr { margin: 16px 0; }
+    `;
+    const fullHtml = `
+        <html xmlns:o='urn:schemas-microsoft-com:office:office' 
+              xmlns:w='urn:schemas-microsoft-com:office:word' 
+              xmlns='http://www.w3.org/TR/REC-html40'>
+        <head><meta charset="utf-8"><title>Minutes</title>
+        <!--[if gte mso 9]><xml><w:WordDocument><w:View>Print</w:View></w:WordDocument></xml><![endif]-->
+        <style>${styles}</style></head>
+        <body>${content}</body>
+        </html>
+    `;
+    const blob = new Blob([fullHtml], { type: 'application/msword' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const meeting = getCurrentMeeting();
+    const dateStr = meeting?.metadata?.date || new Date().toISOString().slice(0,10);
+    a.href = url;
+    a.download = `Minutes_${dateStr}.doc`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+}
+
+function saveAsPDF() {
+    window.print();
+}
+
+function shareWhatsApp() {
+    const preview = document.getElementById('previewContainer');
+    const text = preview.innerText.trim();
+    if (!text || text.includes('Select a group')) {
+        alert('Please generate a preview first.');
+        return;
+    }
+    const url = `https://wa.me/?text=${encodeURIComponent(text)}`;
+    window.open(url, '_blank');
+}
+function copyPreview() {
+    const content = document.getElementById('previewContainer').innerText;
+    if (!content || content.includes('Select a group')) {
+        alert('Generate a preview first.');
+        return;
+    }
+    navigator.clipboard.writeText(content).then(() => alert('Copied!')).catch(() => {
+        const range = document.createRange();
+        range.selectNode(document.getElementById('previewContainer'));
+        window.getSelection().removeAllRanges();
+        window.getSelection().addRange(range);
+        document.execCommand('copy');
+        alert('Copied!');
+    });
+}
+
+function escapeHtml(text) {
+    if (!text) return '';
+    const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
+    return String(text).replace(/[&<>"']/g, function(m) { return map[m]; });
+}
+
+// ----- Auto-backup every 60 seconds -----
+setInterval(() => {
+    saveData();
+    updateBackupStatus();
+}, 60000);
+
+// ----- INIT -----
+loadData();
+populateSelectors();
+if (appState.currentGroupId && appState.currentMeetingId) {
+    loadMeetingIntoUI(appState.currentMeetingId);
+    generatePreview();
+} else {
+    showEmptyState();
+}
+updateLockUI();
+updateBackupStatus();
+
+// Enter key shortcuts
+document.getElementById('newMemberName').addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') addMember();
+});
+document.getElementById('newMemberContact').addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') addMember();
+});
+document.getElementById('newMemberJumuiya').addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') addMember();
+});
+document.getElementById('guestName').addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') addGuest();
+});
+document.getElementById('agendaTitle').addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') addAgenda();
+});
+document.getElementById('actionDesc').addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') addAction();
+});
+</script>
+</body>
+</html>

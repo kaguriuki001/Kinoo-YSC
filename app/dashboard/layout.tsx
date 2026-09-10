@@ -12,6 +12,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   useEffect(() => {
     setDarkMode(localStorage.getItem('kinoo_theme') === 'dark');
+    const savedUser = localStorage.getItem('kinoo_user');
+    if (savedUser) {
+      try {
+        const parsed = JSON.parse(savedUser);
+        if (parsed?.roles) setUser(parsed);
+      } catch (e) {}
+    }
   }, []);
 
   useEffect(() => {
@@ -38,6 +45,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     { href: '/dashboard/liturgist', label: 'Liturgist', icon: '✝️', role: 'liturgist' },
     { href: '/dashboard/vice-moderator', label: 'Vice Moderator', icon: '⚖️', role: 'vice_moderator' },
     { href: '/dashboard/patron-matron', label: 'Patron/Matron', icon: '👵', role: 'patron_matron' },
+    { href: '/minutes.html', label: 'Minutes', icon: '📝', alwaysShow: true, external: true },
     { href: '/dashboard/settings', label: 'Settings', icon: '⚙️', role: 'settings' },
   ];
 
@@ -45,9 +53,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     c.alwaysShow || isAdmin || (c.role && roles.includes(c.role))
   );
 
-  const currentIndex = visibleConsoles.findIndex(c => pathname === c.href);
-  const goBack = () => { if (currentIndex > 0) router.push(visibleConsoles[currentIndex - 1].href); };
-  const goForward = () => { if (currentIndex >= 0 && currentIndex < visibleConsoles.length - 1) router.push(visibleConsoles[currentIndex + 1].href); };
+  const internalConsoles = visibleConsoles.filter((c: any) => !c.external);
+  const currentIndex = internalConsoles.findIndex(c => pathname === c.href);
+  const goBack = () => { if (currentIndex > 0) router.push(internalConsoles[currentIndex - 1].href); };
+  const goForward = () => { if (currentIndex >= 0 && currentIndex < internalConsoles.length - 1) router.push(internalConsoles[currentIndex + 1].href); };
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh', background: darkMode ? '#0f172a' : '#f1f5f9' }}>
@@ -63,13 +72,19 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </div>
         {sidebarOpen && <p style={{ opacity: '0.7', fontSize: '13px', marginBottom: '20px' }}>{user.name || 'User'}</p>}
         <nav style={{ display: 'flex', flexDirection: 'column', gap: '3px', flex: 1 }}>
-          {visibleConsoles.map((item) => (
-            <Link key={item.href} href={item.href} className="sidebar-link" style={{
-              color: pathname === item.href ? '#fff' : textColor,
-              background: pathname === item.href ? '#3b82f6' : 'transparent',
-            }}>
-              <span>{item.icon}</span>{sidebarOpen && <span>{item.label}</span>}
-            </Link>
+          {visibleConsoles.map((item: any) => (
+            item.external ? (
+              <a key={item.href} href={item.href} target="_blank" rel="noopener noreferrer" className="sidebar-link" style={{ color: textColor, background: 'transparent', cursor: 'pointer' }}>
+                <span>{item.icon}</span>{sidebarOpen && <span>{item.label} ↗</span>}
+              </a>
+            ) : (
+              <Link key={item.href} href={item.href} className="sidebar-link" style={{
+                color: pathname === item.href ? '#fff' : textColor,
+                background: pathname === item.href ? '#3b82f6' : 'transparent',
+              }}>
+                <span>{item.icon}</span>{sidebarOpen && <span>{item.label}</span>}
+              </Link>
+            )
           ))}
         </nav>
         <div style={{ paddingTop: '20px' }}>
@@ -85,8 +100,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       <main className="main-content" style={{ flex: 1, padding: '20px', overflowX: 'hidden' }}>
         <div style={{ display: 'flex', gap: '10px', marginBottom: '20px', alignItems: 'center' }}>
           <button onClick={goBack} disabled={currentIndex <= 0} style={{ padding: '10px 20px', border: `1px solid ${borderColor}`, borderRadius: '8px', background: bgColor, color: textColor, cursor: currentIndex <= 0 ? 'not-allowed' : 'pointer', opacity: currentIndex <= 0 ? 0.4 : 1, fontSize: '16px' }}>← Back</button>
-          <button onClick={goForward} disabled={currentIndex >= visibleConsoles.length - 1} style={{ padding: '10px 20px', border: `1px solid ${borderColor}`, borderRadius: '8px', background: bgColor, color: textColor, cursor: currentIndex >= visibleConsoles.length - 1 ? 'not-allowed' : 'pointer', opacity: currentIndex >= visibleConsoles.length - 1 ? 0.4 : 1, fontSize: '16px' }}>Forward →</button>
-          <span style={{ fontSize: '13px', opacity: '0.6', marginLeft: '10px' }}>{currentIndex + 1} / {visibleConsoles.length}</span>
+          <button onClick={goForward} disabled={currentIndex >= internalConsoles.length - 1} style={{ padding: '10px 20px', border: `1px solid ${borderColor}`, borderRadius: '8px', background: bgColor, color: textColor, cursor: currentIndex >= internalConsoles.length - 1 ? 'not-allowed' : 'pointer', opacity: currentIndex >= internalConsoles.length - 1 ? 0.4 : 1, fontSize: '16px' }}>Forward →</button>
+          <span style={{ fontSize: '13px', opacity: '0.6', marginLeft: '10px' }}>{currentIndex + 1} / {internalConsoles.length}</span>
         </div>
         {children}
       </main>
