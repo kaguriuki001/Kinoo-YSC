@@ -43,14 +43,28 @@ export default function SecretaryPage() {
     fetchUsers();
   };
 
-  const sendMessage = async () => {
+  const sendWhatsApp = async () => {
+    if (!message.trim()) { toast.error("Enter message"); return; }
+    toast.loading("Sending to WhatsApp...");
+    const res = await fetch("/api/send-whatsapp", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ message, sendToAll: true })
+    });
+    const data = await res.json();
+    toast.dismiss();
+    if (res.ok) { toast.success(data.message || "Sent!"); setMessage(""); }
+    else toast.error(data.error || "Failed");
+  };
+
+  const sendInApp = async () => {
     if (!message.trim()) { toast.error("Enter message"); return; }
     await fetch("/api/notifications", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ title: "Message from Secretary", message, type: "general" })
     });
-    toast.success("Message sent to all!");
+    toast.success("In-app notification sent!");
     setMessage("");
   };
 
@@ -92,39 +106,43 @@ export default function SecretaryPage() {
       {activeTab === 'members' && (
         <div style={cardStyle}>
           <h2 style={{ marginBottom: '15px' }}>Active Members ({users.length})</h2>
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-            <thead><tr>
-              <th style={{ textAlign: 'left', padding: '10px', borderBottom: `2px solid ${borderColor}`, fontSize: '13px' }}>Name</th>
-              <th style={{ textAlign: 'left', padding: '10px', borderBottom: `2px solid ${borderColor}`, fontSize: '13px' }}>Phone</th>
-              <th style={{ textAlign: 'left', padding: '10px', borderBottom: `2px solid ${borderColor}`, fontSize: '13px' }}>Roles</th>
-            </tr></thead>
-            <tbody>
-              {users.map((u: any) => (
-                <tr key={u._id}>
-                  <td style={{ padding: '10px', borderBottom: `1px solid ${borderColor}` }}>{u.fullName}</td>
-                  <td style={{ padding: '10px', borderBottom: `1px solid ${borderColor}` }}>{u.phone}</td>
-                  <td style={{ padding: '10px', borderBottom: `1px solid ${borderColor}`, fontSize: '12px' }}>{u.roles?.join(', ')}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '500px' }}>
+              <thead><tr>
+                <th style={{ textAlign: 'left', padding: '10px', borderBottom: `2px solid ${borderColor}`, fontSize: '13px' }}>Photo</th>
+                <th style={{ textAlign: 'left', padding: '10px', borderBottom: `2px solid ${borderColor}`, fontSize: '13px' }}>Name</th>
+                <th style={{ textAlign: 'left', padding: '10px', borderBottom: `2px solid ${borderColor}`, fontSize: '13px' }}>Phone</th>
+                <th style={{ textAlign: 'left', padding: '10px', borderBottom: `2px solid ${borderColor}`, fontSize: '13px' }}>Roles</th>
+              </tr></thead>
+              <tbody>
+                {users.map((u: any) => (
+                  <tr key={u._id}>
+                    <td style={{ padding: '10px', borderBottom: `1px solid ${borderColor}` }}>
+                      <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: darkMode ? '#334155' : '#e5e7eb', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '16px' }}>
+                        {u.photo ? <img src={u.photo} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : '👤'}
+                      </div>
+                    </td>
+                    <td style={{ padding: '10px', borderBottom: `1px solid ${borderColor}` }}>{u.fullName}</td>
+                    <td style={{ padding: '10px', borderBottom: `1px solid ${borderColor}` }}>{u.phone}</td>
+                    <td style={{ padding: '10px', borderBottom: `1px solid ${borderColor}`, fontSize: '12px' }}>{u.roles?.join(', ')}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 
       {activeTab === 'minutes' && (
         <div style={cardStyle}>
           <h2 style={{ marginBottom: '15px' }}>📝 Meeting Minutes System</h2>
-          <p style={{ marginBottom: '20px', opacity: '0.8', lineHeight: '1.6' }}>
-            The Minutes System is a full-featured tool for recording meetings. It includes:
-          </p>
+          <p style={{ marginBottom: '20px', opacity: '0.8', lineHeight: '1.6' }}>Full-featured minutes recording with:</p>
           <ul style={{ marginLeft: '20px', marginBottom: '20px', opacity: '0.8', lineHeight: '1.8' }}>
             <li>📂 Multiple groups & meetings</li>
-            <li>👥 Member attendance tracking with quorum</li>
-            <li>👤 Guests & visitors log</li>
-            <li>📌 Agenda & decisions</li>
-            <li>✅ Action items with owners & deadlines</li>
+            <li>👥 Member attendance with quorum</li>
+            <li>📌 Agenda, decisions, action items</li>
+            <li>✍️ Digital signatures</li>
             <li>📄 Export to Word, PDF, WhatsApp</li>
-            <li>💾 Auto-backup & offline support</li>
           </ul>
           <a href="/minutes.html" target="_blank" rel="noopener noreferrer" style={{ display: 'inline-block', background: '#1d4ed8', color: 'white', padding: '14px 28px', borderRadius: '10px', textDecoration: 'none', fontWeight: '600', fontSize: '16px' }}>
             📝 Open Minutes System ↗
@@ -135,8 +153,18 @@ export default function SecretaryPage() {
       {activeTab === 'comms' && (
         <div style={cardStyle}>
           <h2 style={{ marginBottom: '15px' }}>Send Communication</h2>
-          <textarea value={message} onChange={(e) => setMessage(e.target.value)} placeholder="Type message to all members..." style={{ ...inputStyle, minHeight: '100px' }} />
-          <button onClick={sendMessage} style={{ background: '#16a34a', color: 'white', border: 'none', padding: '10px 20px', borderRadius: '8px', cursor: 'pointer' }}>📢 Send to All</button>
+          <textarea value={message} onChange={(e) => setMessage(e.target.value)} placeholder="Type message to all members..." style={{ ...inputStyle, minHeight: '120px' }} />
+          <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+            <button onClick={sendWhatsApp} style={{ background: '#25D366', color: 'white', border: 'none', padding: '12px 24px', borderRadius: '8px', cursor: 'pointer', fontWeight: '600' }}>
+              📱 Send to WhatsApp
+            </button>
+            <button onClick={sendInApp} style={{ background: '#16a34a', color: 'white', border: 'none', padding: '12px 24px', borderRadius: '8px', cursor: 'pointer', fontWeight: '600' }}>
+              📢 Send In-App
+            </button>
+          </div>
+          <p style={{ fontSize: '12px', opacity: '0.6', marginTop: '15px' }}>
+            ℹ️ WhatsApp requires Meta credentials. If not configured, messages will only be logged.
+          </p>
         </div>
       )}
     </div>

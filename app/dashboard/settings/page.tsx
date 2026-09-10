@@ -11,6 +11,7 @@ export default function SettingsPage() {
   const [darkMode, setDarkMode] = useState(false);
   const [csvData, setCsvData] = useState("");
   const [mpesaSettings, setMpesaSettings] = useState({ paybill: "", tillNumber: "", accountNumber: "", accountName: "", organizationName: "Kinoo YSC" });
+  const [photoUsers, setPhotoUsers] = useState<any[]>([]);
 
   useEffect(() => {
     setDarkMode(localStorage.getItem('kinoo_theme') === 'dark');
@@ -18,6 +19,7 @@ export default function SettingsPage() {
     fetch("/api/reports").then(r => r.json()).then(setReports).catch(() => {});
     fetch("/api/audit").then(r => r.json()).then(d => { if (Array.isArray(d)) setAuditLogs(d); }).catch(() => {});
     fetch("/api/settings").then(r => r.json()).then(d => { if (d) setMpesaSettings(d); }).catch(() => {});
+    fetch("/api/users").then(r => r.json()).then(d => { if (Array.isArray(d)) setPhotoUsers(d.filter((u: any) => u.status === 'active')); }).catch(() => {});
   }, []);
 
   const textColor = darkMode ? '#e2e8f0' : '#1e293b';
@@ -30,7 +32,10 @@ export default function SettingsPage() {
 
   const refreshUsers = () => {
     fetch("/api/users", { credentials: "include" }).then(r => r.json()).then(d => {
-      if (Array.isArray(d)) setUsers(d.filter((u: any) => u.status === 'active'));
+      if (Array.isArray(d)) {
+        setUsers(d.filter((u: any) => u.status === 'active'));
+        setPhotoUsers(d.filter((u: any) => u.status === 'active'));
+      }
     }).catch(() => {});
   };
 
@@ -78,11 +83,38 @@ export default function SettingsPage() {
     else toast.error("Failed to save");
   };
 
+  const uploadPhoto = (userId: string, file: File) => {
+    if (file.size > 2000000) { toast.error("Photo too large (max 2MB)"); return; }
+    const reader = new FileReader();
+    reader.onload = async (ev) => {
+      const dataUrl = ev.target?.result as string;
+      const res = await fetch("/api/upload-photo", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId, photoData: dataUrl })
+      });
+      if (res.ok) {
+        toast.success("Photo uploaded!");
+        setPhotoUsers(prev => prev.map(p => p._id === userId ? { ...p, photo: dataUrl } : p));
+      } else toast.error("Upload failed");
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const removePhoto = async (userId: string) => {
+    const res = await fetch(`/api/upload-photo?userId=${userId}`, { method: 'DELETE' });
+    if (res.ok) {
+      toast.success("Photo removed");
+      setPhotoUsers(prev => prev.map(p => p._id === userId ? { ...p, photo: undefined } : p));
+    }
+  };
+
   const tabs = [
     { id: 'overview', label: '📊 Overview' },
     { id: 'roles', label: '👥 Roles' },
     { id: 'bulk', label: '📦 Bulk & Import' },
-    { id: 'mpesa', label: '💰 M-Pesa Settings' },
+    { id: 'mpesa', label: '💰 M-Pesa' },
+    { id: 'photos', label: '📸 Photos' },
     { id: 'reports', label: '📈 Reports' },
     { id: 'audit', label: '🔒 Audit Log' },
   ];
@@ -136,6 +168,7 @@ export default function SettingsPage() {
                     + {r.replace('_', ' ')}
                   </button>
                 ))}
+                <button onClick={() => resetPass(u._id)} style={{ background: '#f97316', color: 'white', border: 'none', padding: '5px 12px', borderRadius: '4px', cursor: 'pointer', fontSize: '12px' }}>Reset Password</button>
               </div>
             </div>
           ))}
@@ -184,7 +217,7 @@ export default function SettingsPage() {
         <div style={cardStyle}>
           <h2 style={{ marginBottom: '15px' }}>💰 M-Pesa Configuration</h2>
           <p style={{ fontSize: '13px', opacity: '0.7', marginBottom: '20px' }}>
-            Set the payment destination for member contributions. This will be used when members send M-Pesa prompts.
+            Set the payment destination for member contributions.
           </p>
 
           <div style={{ maxWidth: '500px' }}>
@@ -193,15 +226,12 @@ export default function SettingsPage() {
 
             <label style={{ fontSize: '13px', opacity: '0.7' }}>Paybill Number (optional)</label>
             <input value={mpesaSettings.paybill} onChange={(e) => setMpesaSettings({...mpesaSettings, paybill: e.target.value})} placeholder="e.g., 247247" style={inputStyle} />
-            <p style={{ fontSize: '12px', opacity: '0.5', marginTop: '-5px', marginBottom: '10px' }}>Use this if you have a Paybill</p>
 
             <label style={{ fontSize: '13px', opacity: '0.7' }}>Till Number / Buy Goods (optional)</label>
             <input value={mpesaSettings.tillNumber} onChange={(e) => setMpesaSettings({...mpesaSettings, tillNumber: e.target.value})} placeholder="e.g., 5123456" style={inputStyle} />
-            <p style={{ fontSize: '12px', opacity: '0.5', marginTop: '-5px', marginBottom: '10px' }}>Use this if you have a Till Number (Buy Goods)</p>
 
             <label style={{ fontSize: '13px', opacity: '0.7' }}>Account Number</label>
             <input value={mpesaSettings.accountNumber} onChange={(e) => setMpesaSettings({...mpesaSettings, accountNumber: e.target.value})} placeholder="e.g., KINOOYSC" style={inputStyle} />
-            <p style={{ fontSize: '12px', opacity: '0.5', marginTop: '-5px', marginBottom: '10px' }}>Shown as the payment reference</p>
 
             <label style={{ fontSize: '13px', opacity: '0.7' }}>Account Name</label>
             <input value={mpesaSettings.accountName} onChange={(e) => setMpesaSettings({...mpesaSettings, accountName: e.target.value})} placeholder="e.g., Kinoo Youth Sports Club" style={inputStyle} />
@@ -209,13 +239,31 @@ export default function SettingsPage() {
             <button onClick={saveMpesaSettings} style={{ background: '#16a34a', color: 'white', border: 'none', padding: '12px 24px', borderRadius: '8px', cursor: 'pointer', fontWeight: '600', width: '100%', marginTop: '10px' }}>
               💾 Save M-Pesa Settings
             </button>
+          </div>
+        </div>
+      )}
 
-            <div style={{ marginTop: '20px', padding: '15px', background: darkMode ? '#334155' : '#f0fdf4', borderRadius: '8px' }}>
-              <p style={{ fontSize: '13px', fontWeight: '600', marginBottom: '8px' }}>ℹ️ How it works</p>
-              <p style={{ fontSize: '12px', opacity: '0.8', lineHeight: '1.6' }}>
-                When a member clicks "Send M-Pesa Prompt" on the dashboard, an STK push will be sent to their phone. They enter their PIN, and the payment goes directly to the configured Paybill or Till Number above.
-              </p>
-            </div>
+      {activeTab === 'photos' && (
+        <div style={cardStyle}>
+          <h2 style={{ marginBottom: '15px' }}>📸 Member Photos</h2>
+          <p style={{ fontSize: '13px', opacity: '0.7', marginBottom: '20px' }}>Photos are optional. Tap to upload.</p>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: '15px' }}>
+            {photoUsers.map((u: any) => (
+              <div key={u._id} style={{ padding: '12px', border: `1px solid ${borderColor}`, borderRadius: '12px', textAlign: 'center' }}>
+                <div style={{ width: '80px', height: '80px', borderRadius: '50%', background: darkMode ? '#334155' : '#e5e7eb', margin: '0 auto 10px', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '32px' }}>
+                  {u.photo ? <img src={u.photo} alt={u.fullName} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : '👤'}
+                </div>
+                <p style={{ fontSize: '13px', fontWeight: '600', marginBottom: '5px' }}>{u.fullName}</p>
+                <p style={{ fontSize: '11px', opacity: '0.6', marginBottom: '8px' }}>{u.phone}</p>
+                <input type="file" accept="image/*" id={`photo-${u._id}`} style={{ display: 'none' }} onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadPhoto(u._id, f); }} />
+                <div style={{ display: 'flex', gap: '5px', justifyContent: 'center' }}>
+                  <label htmlFor={`photo-${u._id}`} style={{ background: '#3b82f6', color: 'white', padding: '5px 10px', borderRadius: '5px', cursor: 'pointer', fontSize: '11px' }}>
+                    {u.photo ? 'Change' : 'Upload'}
+                  </label>
+                  {u.photo && <button onClick={() => removePhoto(u._id)} style={{ background: '#ef4444', color: 'white', border: 'none', padding: '5px 10px', borderRadius: '5px', cursor: 'pointer', fontSize: '11px' }}>Remove</button>}
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       )}
@@ -223,7 +271,7 @@ export default function SettingsPage() {
       {activeTab === 'reports' && (
         <div style={cardStyle}>
           <h2 style={{ marginBottom: '15px' }}>Reports</h2>
-          <button onClick={() => fetch("/api/reports").then(r => r.json()).then(d => { setReports(d); toast.success("Report refreshed!"); })} style={{ background: '#10b981', color: 'white', border: 'none', padding: '10px 20px', borderRadius: '8px', cursor: 'pointer' }}>
+          <button onClick={() => fetch("/api/reports").then(r => r.json()).then(d => { setReports(d); toast.success("Refreshed!"); })} style={{ background: '#10b981', color: 'white', border: 'none', padding: '10px 20px', borderRadius: '8px', cursor: 'pointer' }}>
             Generate Report
           </button>
           {reports && (
