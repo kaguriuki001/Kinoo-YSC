@@ -6,15 +6,12 @@ export default function SecretaryPage() {
   const [activeTab, setActiveTab] = useState("approvals");
   const [users, setUsers] = useState<any[]>([]);
   const [pending, setPending] = useState<any[]>([]);
-  const [minutes, setMinutes] = useState<any[]>([]);
-  const [newMinute, setNewMinute] = useState("");
   const [message, setMessage] = useState("");
   const [darkMode, setDarkMode] = useState(false);
 
   useEffect(() => {
     setDarkMode(localStorage.getItem('kinoo_theme') === 'dark');
     fetchUsers();
-    fetchMinutes();
   }, []);
 
   const textColor = darkMode ? '#e2e8f0' : '#1e293b';
@@ -34,14 +31,6 @@ export default function SecretaryPage() {
     } catch (e) {}
   };
 
-  const fetchMinutes = async () => {
-    try {
-      const res = await fetch("/api/minutes");
-      const data = await res.json();
-      if (Array.isArray(data)) setMinutes(data);
-    } catch (e) {}
-  };
-
   const approve = async (id: string) => {
     await fetch("/api/assign-role", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ userId: id, role: 'member' }) });
     toast.success("Member approved!");
@@ -52,22 +41,6 @@ export default function SecretaryPage() {
     await fetch("/api/bulk", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: 'delete', userIds: [id] }) });
     toast.success("Member rejected");
     fetchUsers();
-  };
-
-  const saveMinute = async () => {
-    if (!newMinute.trim()) { toast.error("Enter minutes content"); return; }
-    const res = await fetch("/api/minutes", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ content: newMinute, uploadedBy: "secretary" })
-    });
-    if (res.ok) {
-      toast.success("Minutes saved to database!");
-      setNewMinute("");
-      fetchMinutes();
-    } else {
-      toast.error("Failed to save");
-    }
   };
 
   const sendMessage = async () => {
@@ -130,7 +103,7 @@ export default function SecretaryPage() {
                 <tr key={u._id}>
                   <td style={{ padding: '10px', borderBottom: `1px solid ${borderColor}` }}>{u.fullName}</td>
                   <td style={{ padding: '10px', borderBottom: `1px solid ${borderColor}` }}>{u.phone}</td>
-                  <td style={{ padding: '10px', borderBottom: `1px solid ${borderColor}` }}>{u.roles?.join(', ')}</td>
+                  <td style={{ padding: '10px', borderBottom: `1px solid ${borderColor}`, fontSize: '12px' }}>{u.roles?.join(', ')}</td>
                 </tr>
               ))}
             </tbody>
@@ -140,17 +113,22 @@ export default function SecretaryPage() {
 
       {activeTab === 'minutes' && (
         <div style={cardStyle}>
-          <h2 style={{ marginBottom: '15px' }}>Meeting Minutes</h2>
-          <textarea value={newMinute} onChange={(e) => setNewMinute(e.target.value)} placeholder="Enter minutes content..." style={{ ...inputStyle, minHeight: '120px' }} />
-          <button onClick={saveMinute} style={{ background: '#1d4ed8', color: 'white', border: 'none', padding: '10px 20px', borderRadius: '8px', cursor: 'pointer' }}>💾 Save to Database</button>
-          
-          <h3 style={{ margin: '20px 0 10px' }}>Previous Minutes ({minutes.length})</h3>
-          {minutes.length === 0 ? <p style={{ opacity: '0.7' }}>No minutes saved yet.</p> : minutes.map((m: any) => (
-            <div key={m._id} style={{ padding: '12px', background: darkMode ? '#334155' : '#f9fafb', borderRadius: '8px', marginBottom: '8px' }}>
-              <p style={{ fontSize: '12px', opacity: '0.6' }}>{new Date(m.date).toLocaleString()}</p>
-              <p>{m.content}</p>
-            </div>
-          ))}
+          <h2 style={{ marginBottom: '15px' }}>📝 Meeting Minutes System</h2>
+          <p style={{ marginBottom: '20px', opacity: '0.8', lineHeight: '1.6' }}>
+            The Minutes System is a full-featured tool for recording meetings. It includes:
+          </p>
+          <ul style={{ marginLeft: '20px', marginBottom: '20px', opacity: '0.8', lineHeight: '1.8' }}>
+            <li>📂 Multiple groups & meetings</li>
+            <li>👥 Member attendance tracking with quorum</li>
+            <li>👤 Guests & visitors log</li>
+            <li>📌 Agenda & decisions</li>
+            <li>✅ Action items with owners & deadlines</li>
+            <li>📄 Export to Word, PDF, WhatsApp</li>
+            <li>💾 Auto-backup & offline support</li>
+          </ul>
+          <a href="/minutes.html" target="_blank" rel="noopener noreferrer" style={{ display: 'inline-block', background: '#1d4ed8', color: 'white', padding: '14px 28px', borderRadius: '10px', textDecoration: 'none', fontWeight: '600', fontSize: '16px' }}>
+            📝 Open Minutes System ↗
+          </a>
         </div>
       )}
 
