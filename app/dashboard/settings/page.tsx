@@ -24,25 +24,6 @@ export default function SettingsPage() {
     fetch("/api/settings").then(r => r.json()).then(d => { if (d) setMpesaSettings(d); }).catch(() => {});
   }, []);
 
-  // Auto-refresh users every 15 seconds
-  useEffect(() => {
-    const interval = setInterval(() => {
-      refreshUsers();
-    }, 15000);
-    return () => clearInterval(interval);
-  }, []);
-
-  // Refresh when returning to the tab
-  useEffect(() => {
-    const handleVisibility = () => { if (!document.hidden) refreshUsers(); };
-    document.addEventListener('visibilitychange', handleVisibility);
-    window.addEventListener('focus', handleVisibility);
-    return () => {
-      document.removeEventListener('visibilitychange', handleVisibility);
-      window.removeEventListener('focus', handleVisibility);
-    };
-  }, []);
-
   const textColor = darkMode ? '#e2e8f0' : '#1e293b';
   const bgColor = darkMode ? '#1e293b' : '#ffffff';
   const borderColor = darkMode ? '#334155' : '#e5e7eb';
@@ -52,7 +33,7 @@ export default function SettingsPage() {
   const allRoles = ['father', 'moderator', 'secretary', 'treasurer', 'organizing_secretary', 'vice_secretary', 'liturgist', 'vice_moderator', 'patron_matron', 'member'];
 
   const refreshUsers = () => {
-    fetch("/api/users", { cache: "no-store", credentials: "include" }).then(r => r.json()).then(d => {
+    fetch("/api/users", { cache: "no-store" }).then(r => r.json()).then(d => {
       if (Array.isArray(d)) {
         const active = d.filter((u: any) => u.status === 'active');
         setUsers(active);
@@ -62,11 +43,10 @@ export default function SettingsPage() {
   };
 
   const assignRole = async (userId: string, role: string) => {
+    // Instant UI update
+    setUsers(prev => prev.map(u => u._id === userId ? { ...u, roles: [...(u.roles || []), role] } : u));
     await fetch("/api/assign-role", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ userId, role }) });
     toast.success(`Role assigned: ${role}`);
-    // Optimistic update
-    setUsers(prev => prev.map(u => u._id === userId ? { ...u, roles: [...(u.roles || []), role] } : u));
-    refreshUsers();
   };
 
   const resetPass = async (userId: string) => {
@@ -74,28 +54,47 @@ export default function SettingsPage() {
     toast.success("Password reset to: Kinoo123!");
   };
 
+  // KEY FIX: Instant removal without waiting for server + works multiple times
   const deleteUser = async (userId: string, name: string) => {
     if (!confirm(`Delete ${name}? This cannot be undone.`)) return;
-    // Optimistic removal - instantly removes from UI
+
+    // Store current for rollback
+    const previousUsers = users;
+    const previousPhotoUsers = photoUsers;
+
+    // INSTANT removal from UI (like deleting a photo)
     setUsers(prev => prev.filter(u => u._id !== userId));
     setPhotoUsers(prev => prev.filter(u => u._id !== userId));
-    const res = await fetch(`/api/delete-user?userId=${userId}`, { method: 'DELETE' });
-    const data = await res.json();
-    if (res.ok) {
-      toast.success(data.message);
-      refreshUsers();
-    } else {
-      toast.error(data.error || "Delete failed");
-      refreshUsers();
+    setSelectedUsers(prev => prev.filter(id => id !== userId));
+
+    // Now call the API in background
+    try {
+      const res = await fetch(`/api/delete-user?userId=${userId}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (res.ok) {
+        toast.success(data.message || `${name} deleted`);
+      } else {
+        // Rollback on failure
+        setUsers(previousUsers);
+        setPhotoUsers(previousPhotoUsers);
+        toast.error(data.error || "Delete failed");
+      }
+    } catch (err) {
+      // Rollback on error
+      setUsers(previousUsers);
+      setPhotoUsers(previousPhotoUsers);
+      toast.error("Network error. Restored.");
     }
   };
 
   const bulkApprove = async () => {
     if (selectedUsers.length === 0) { toast.error("Select members first"); return; }
-    await fetch("/api/bulk", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: 'approve', userIds: selectedUsers }) });
-    toast.success("Bulk approval done!");
+    const ids = [...selectedUsers];
+    // Instant UI update
+    setUsers(prev => prev.map(u => ids.includes(u._id) ? { ...u, status: 'active' } : u));
     setSelectedUsers([]);
-    refreshUsers();
+    await fetch("/api/bulk", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: 'approve', userIds: ids }) });
+    toast.success("Bulk approval done!");
   };
 
   const importCSV = async () => {
@@ -127,47 +126,30 @@ export default function SettingsPage() {
     const reader = new FileReader();
     reader.onload = async (ev) => {
       const dataUrl = ev.target?.result as string;
+      setPhotoUsers(prev => prev.map(p => p._id === userId ? { ...p, photo: dataUrl } : p));
       const res = await fetch("/api/upload-photo", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ userId, photoData: dataUrl })
       });
-      if (res.ok) {
-        toast.success("Photo uploaded!");
-        setPhotoUsers(prev => prev.map(p => p._id === userId ? { ...p, photo: dataUrl } : p));
-      } else toast.error("Upload failed");
+      if (res.ok) toast.success("Photo uploaded!");
+      else toast.error("Upload failed");
     };
     reader.readAsDataURL(file);
   };
 
   const removePhoto = async (userId: string) => {
-    // Optimistic removal
+    // Instant removal
     setPhotoUsers(prev => prev.map(p => p._id === userId ? { ...p, photo: undefined } : p));
     const res = await fetch(`/api/upload-photo?userId=${userId}`, { method: 'DELETE' });
     if (res.ok) toast.success("Photo removed");
-    else {
-      toast.error("Failed to remove photo");
-      refreshUsers();
-    }
+    else toast.error("Failed to remove");
   };
 
   const resetSystem = async () => {
     if (resetConfirm !== "RESET") { toast.error("Type RESET to confirm"); return; }
     if (!confirm(`Reset ${resetScope}? This cannot be undone.`)) return;
     setResetLoading(true);
-
-    // Optimistic UI clear
-    if (resetScope === 'all') {
-      setUsers([]);
-      setPhotoUsers([]);
-      setReports(null);
-      setAuditLogs([]);
-    } else if (resetScope === 'transactions') {
-      setReports(null);
-    } else if (resetScope === 'events') {
-      setReports(null);
-    }
-
     const res = await fetch("/api/reset-system", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -182,7 +164,6 @@ export default function SettingsPage() {
       fetch("/api/reports").then(r => r.json()).then(setReports).catch(() => {});
     } else {
       toast.error(data.error || "Reset failed");
-      refreshUsers();
     }
   };
 
@@ -201,7 +182,7 @@ export default function SettingsPage() {
     <div style={{ color: textColor }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px', marginBottom: '20px' }}>
         <h1 style={{ fontSize: '28px' }}>⚙️ Settings Console</h1>
-        <button onClick={() => { refreshUsers(); fetch("/api/reports").then(r => r.json()).then(setReports).catch(() => {}); toast.success("Refreshed!"); }} style={{ background: darkMode ? '#334155' : '#e5e7eb', color: textColor, border: 'none', padding: '8px 16px', borderRadius: '8px', cursor: 'pointer', fontSize: '13px' }}>🔄 Refresh</button>
+        <button onClick={() => { refreshUsers(); toast.success("Refreshed!"); }} style={{ background: darkMode ? '#334155' : '#e5e7eb', color: textColor, border: 'none', padding: '8px 16px', borderRadius: '8px', cursor: 'pointer', fontSize: '13px' }}>🔄 Refresh</button>
       </div>
 
       <div style={{ display: 'flex', gap: '5px', marginBottom: '20px', flexWrap: 'wrap' }}>
@@ -220,7 +201,7 @@ export default function SettingsPage() {
           {reports ? (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '10px' }}>
               <div style={{ padding: '15px', background: darkMode ? '#334155' : '#eff6ff', borderRadius: '8px', textAlign: 'center' }}>
-                <p style={{ fontSize: '24px', fontWeight: 'bold', color: '#3b82f6' }}>{reports.activeMembers}</p>
+                <p style={{ fontSize: '24px', fontWeight: 'bold', color: '#3b82f6' }}>{users.length}</p>
                 <p style={{ fontSize: '13px', opacity: '0.7' }}>Active Members</p>
               </div>
               <div style={{ padding: '15px', background: darkMode ? '#334155' : '#f0fdf4', borderRadius: '8px', textAlign: 'center' }}>
@@ -238,19 +219,24 @@ export default function SettingsPage() {
 
       {activeTab === 'roles' && (
         <div style={cardStyle}>
-          <h2 style={{ marginBottom: '15px' }}>Assign Roles ({users.length})</h2>
-          {users.length === 0 ? <p style={{ opacity: '0.7' }}>No active members. Add some from Bulk & Import tab.</p> : users.map((u: any) => (
+          <h2 style={{ marginBottom: '15px' }}>Members & Roles ({users.length})</h2>
+          {users.length === 0 ? <p style={{ opacity: '0.7' }}>No active members.</p> : users.map((u: any) => (
             <div key={u._id} style={{ padding: '15px', borderBottom: `1px solid ${borderColor}` }}>
               <p style={{ fontWeight: '600' }}>{u.fullName}</p>
-              <p style={{ fontSize: '13px', opacity: '0.7' }}>{u.phone} — Current: {u.roles?.join(', ')}</p>
-              <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap', marginTop: '8px' }}>
-                {allRoles.filter((r: string) => !u.roles?.includes(r)).map((r: string) => (
-                  <button key={r} onClick={() => assignRole(u._id, r)} style={{ background: '#3b82f6', color: 'white', border: 'none', padding: '5px 12px', borderRadius: '4px', cursor: 'pointer', fontSize: '12px' }}>
+              <p style={{ fontSize: '13px', opacity: '0.7', marginBottom: '5px' }}>{u.phone}</p>
+              <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', marginBottom: '8px' }}>
+                {u.roles?.map((r: string) => (
+                  <span key={r} style={{ background: '#3b82f6', color: 'white', padding: '3px 10px', borderRadius: '20px', fontSize: '11px' }}>{r.replace('_', ' ')}</span>
+                ))}
+              </div>
+              <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap' }}>
+                {allRoles.filter((r: string) => !u.roles?.includes(r)).slice(0, 4).map((r: string) => (
+                  <button key={r} onClick={() => assignRole(u._id, r)} style={{ background: '#3b82f6', color: 'white', border: 'none', padding: '4px 10px', borderRadius: '4px', cursor: 'pointer', fontSize: '11px' }}>
                     + {r.replace('_', ' ')}
                   </button>
                 ))}
-                <button onClick={() => resetPass(u._id)} style={{ background: '#f97316', color: 'white', border: 'none', padding: '5px 12px', borderRadius: '4px', cursor: 'pointer', fontSize: '12px' }}>🔑 Reset Password</button>
-                <button onClick={() => deleteUser(u._id, u.fullName)} style={{ background: '#ef4444', color: 'white', border: 'none', padding: '5px 12px', borderRadius: '4px', cursor: 'pointer', fontSize: '12px' }}>🗑️ Delete</button>
+                <button onClick={() => resetPass(u._id)} style={{ background: '#f97316', color: 'white', border: 'none', padding: '4px 10px', borderRadius: '4px', cursor: 'pointer', fontSize: '11px' }}>🔑 Reset Pass</button>
+                <button onClick={() => deleteUser(u._id, u.fullName)} style={{ background: '#ef4444', color: 'white', border: 'none', padding: '4px 10px', borderRadius: '4px', cursor: 'pointer', fontSize: '11px', fontWeight: '600' }}>🗑️ Delete</button>
               </div>
             </div>
           ))}
@@ -277,10 +263,11 @@ export default function SettingsPage() {
           {users.map((u: any) => (
             <div key={u._id} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px', borderBottom: `1px solid ${borderColor}` }}>
               <input type="checkbox" checked={selectedUsers.includes(u._id)} onChange={() => toggleSelect(u._id)} />
-              <div>
+              <div style={{ flex: 1 }}>
                 <p style={{ fontWeight: '500' }}>{u.fullName}</p>
                 <p style={{ fontSize: '13px', opacity: '0.7' }}>{u.phone}</p>
               </div>
+              <button onClick={() => deleteUser(u._id, u.fullName)} style={{ background: '#ef4444', color: 'white', border: 'none', padding: '4px 10px', borderRadius: '4px', cursor: 'pointer', fontSize: '11px' }}>🗑️</button>
             </div>
           ))}
         </div>
@@ -289,27 +276,18 @@ export default function SettingsPage() {
       {activeTab === 'mpesa' && (
         <div style={cardStyle}>
           <h2 style={{ marginBottom: '15px' }}>💰 M-Pesa Configuration</h2>
-          <p style={{ fontSize: '13px', opacity: '0.7', marginBottom: '20px' }}>Set the payment destination for member contributions.</p>
-
           <div style={{ maxWidth: '500px' }}>
             <label style={{ fontSize: '13px', opacity: '0.7' }}>Organization Name</label>
             <input value={mpesaSettings.organizationName} onChange={(e) => setMpesaSettings({...mpesaSettings, organizationName: e.target.value})} style={inputStyle} />
-
             <label style={{ fontSize: '13px', opacity: '0.7' }}>Paybill Number (optional)</label>
             <input value={mpesaSettings.paybill} onChange={(e) => setMpesaSettings({...mpesaSettings, paybill: e.target.value})} placeholder="e.g., 247247" style={inputStyle} />
-
-            <label style={{ fontSize: '13px', opacity: '0.7' }}>Till Number / Buy Goods (optional)</label>
+            <label style={{ fontSize: '13px', opacity: '0.7' }}>Till Number (optional)</label>
             <input value={mpesaSettings.tillNumber} onChange={(e) => setMpesaSettings({...mpesaSettings, tillNumber: e.target.value})} placeholder="e.g., 5123456" style={inputStyle} />
-
             <label style={{ fontSize: '13px', opacity: '0.7' }}>Account Number</label>
             <input value={mpesaSettings.accountNumber} onChange={(e) => setMpesaSettings({...mpesaSettings, accountNumber: e.target.value})} placeholder="e.g., KINOOYSC" style={inputStyle} />
-
             <label style={{ fontSize: '13px', opacity: '0.7' }}>Account Name</label>
             <input value={mpesaSettings.accountName} onChange={(e) => setMpesaSettings({...mpesaSettings, accountName: e.target.value})} placeholder="e.g., Kinoo Youth Group" style={inputStyle} />
-
-            <button onClick={saveMpesaSettings} style={{ background: '#16a34a', color: 'white', border: 'none', padding: '12px 24px', borderRadius: '8px', cursor: 'pointer', fontWeight: '600', width: '100%', marginTop: '10px' }}>
-              💾 Save M-Pesa Settings
-            </button>
+            <button onClick={saveMpesaSettings} style={{ background: '#16a34a', color: 'white', border: 'none', padding: '12px 24px', borderRadius: '8px', cursor: 'pointer', fontWeight: '600', width: '100%', marginTop: '10px' }}>💾 Save M-Pesa Settings</button>
           </div>
         </div>
       )}
@@ -317,7 +295,6 @@ export default function SettingsPage() {
       {activeTab === 'photos' && (
         <div style={cardStyle}>
           <h2 style={{ marginBottom: '15px' }}>📸 Member Photos</h2>
-          <p style={{ fontSize: '13px', opacity: '0.7', marginBottom: '20px' }}>Photos are optional. Tap to upload.</p>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: '15px' }}>
             {photoUsers.map((u: any) => (
               <div key={u._id} style={{ padding: '12px', border: `1px solid ${borderColor}`, borderRadius: '12px', textAlign: 'center' }}>
@@ -325,12 +302,9 @@ export default function SettingsPage() {
                   {u.photo ? <img src={u.photo} alt={u.fullName} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : '👤'}
                 </div>
                 <p style={{ fontSize: '13px', fontWeight: '600', marginBottom: '5px' }}>{u.fullName}</p>
-                <p style={{ fontSize: '11px', opacity: '0.6', marginBottom: '8px' }}>{u.phone}</p>
                 <input type="file" accept="image/*" id={`photo-${u._id}`} style={{ display: 'none' }} onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadPhoto(u._id, f); }} />
                 <div style={{ display: 'flex', gap: '5px', justifyContent: 'center' }}>
-                  <label htmlFor={`photo-${u._id}`} style={{ background: '#3b82f6', color: 'white', padding: '5px 10px', borderRadius: '5px', cursor: 'pointer', fontSize: '11px' }}>
-                    {u.photo ? 'Change' : 'Upload'}
-                  </label>
+                  <label htmlFor={`photo-${u._id}`} style={{ background: '#3b82f6', color: 'white', padding: '5px 10px', borderRadius: '5px', cursor: 'pointer', fontSize: '11px' }}>{u.photo ? 'Change' : 'Upload'}</label>
                   {u.photo && <button onClick={() => removePhoto(u._id)} style={{ background: '#ef4444', color: 'white', border: 'none', padding: '5px 10px', borderRadius: '5px', cursor: 'pointer', fontSize: '11px' }}>Remove</button>}
                 </div>
               </div>
@@ -342,13 +316,11 @@ export default function SettingsPage() {
       {activeTab === 'reports' && (
         <div style={cardStyle}>
           <h2 style={{ marginBottom: '15px' }}>Reports</h2>
-          <button onClick={() => fetch("/api/reports").then(r => r.json()).then(d => { setReports(d); toast.success("Refreshed!"); })} style={{ background: '#10b981', color: 'white', border: 'none', padding: '10px 20px', borderRadius: '8px', cursor: 'pointer' }}>
-            Generate Report
-          </button>
+          <button onClick={() => fetch("/api/reports").then(r => r.json()).then(d => { setReports(d); toast.success("Refreshed!"); })} style={{ background: '#10b981', color: 'white', border: 'none', padding: '10px 20px', borderRadius: '8px', cursor: 'pointer' }}>Generate Report</button>
           {reports && (
             <div style={{ marginTop: '15px' }}>
               <p>Members: {reports.totalMembers} (Active: {reports.activeMembers})</p>
-              <p>Transactions: {reports.totalTransactions} (Verified: {reports.verifiedTransactions})</p>
+              <p>Transactions: {reports.totalTransactions}</p>
               <p>Events: {reports.totalEvents}</p>
               <p>Income: KES {reports.totalIncome}</p>
             </div>
@@ -371,13 +343,11 @@ export default function SettingsPage() {
       {activeTab === 'data' && (
         <div style={cardStyle}>
           <h2 style={{ marginBottom: '15px' }}>🗑️ Data Management</h2>
-
           <div style={{ padding: '20px', border: `2px solid #ef4444`, borderRadius: '10px', background: darkMode ? '#1e293b' : '#fef2f2' }}>
             <h3 style={{ marginBottom: '15px', color: '#ef4444' }}>⚠️ Danger Zone</h3>
             <p style={{ fontSize: '13px', opacity: '0.8', marginBottom: '20px', lineHeight: '1.6', color: textColor }}>
-              Reset system data. This action <strong>CANNOT</strong> be undone. Your admin account(s) will be preserved.
+              Reset system data. This action <strong>CANNOT</strong> be undone. Admin accounts are preserved.
             </p>
-
             <label style={{ fontSize: '13px', opacity: '0.7', display: 'block', marginBottom: '8px', color: textColor }}>What to reset:</label>
             <select value={resetScope} onChange={(e) => setResetScope(e.target.value)} style={inputStyle}>
               <option value="all">🌐 Everything (keep admins only)</option>
@@ -386,10 +356,8 @@ export default function SettingsPage() {
               <option value="fragos">🎯 FRAGOs only</option>
               <option value="notifications">🔔 Notifications only</option>
             </select>
-
             <label style={{ fontSize: '13px', opacity: '0.7', display: 'block', marginBottom: '8px', marginTop: '15px', color: textColor }}>Type RESET to confirm:</label>
             <input value={resetConfirm} onChange={(e) => setResetConfirm(e.target.value)} placeholder="Type RESET" style={inputStyle} />
-
             <button onClick={resetSystem} disabled={resetLoading} style={{ background: '#ef4444', color: 'white', border: 'none', padding: '12px 24px', borderRadius: '8px', cursor: 'pointer', fontWeight: '600', width: '100%', marginTop: '15px', opacity: resetLoading ? 0.6 : 1 }}>
               {resetLoading ? "Resetting..." : "🚨 Reset Now"}
             </button>
