@@ -14,10 +14,20 @@ export default function Dashboard() {
   const [purpose, setPurpose] = useState("Tithe");
   const [activeTab, setActiveTab] = useState("overview");
 
-  useEffect(() => {
-    setDarkMode(localStorage.getItem('kinoo_theme') === 'dark');
-    fetch("/api/users", { cache: "no-store" }).then(r => r.json()).then(d => { if (Array.isArray(d)) { const active = d.filter((u: any) => u.status === 'active'); setMembers(active); setFilteredMembers(active); setStats(p => ({ ...p, members: active.length })); } }).catch(() => {});
-    fetch("/api/events", { cache: "no-store" }).then(r => r.json()).then(d => { if (Array.isArray(d)) { setEvents(d); setStats(p => ({ ...p, events: d.length })); } }).catch(() => {});
+  const fetchAll = () => {
+    fetch("/api/users", { cache: "no-store" }).then(r => r.json()).then(d => {
+      if (Array.isArray(d)) {
+        const active = d.filter((u: any) => u.status === 'active');
+        setMembers(active);
+        setFilteredMembers(active);
+        setStats(p => ({ ...p, members: active.length }));
+      }
+    }).catch(() => {});
+
+    fetch("/api/events", { cache: "no-store" }).then(r => r.json()).then(d => {
+      if (Array.isArray(d)) { setEvents(d); setStats(p => ({ ...p, events: d.length })); }
+    }).catch(() => {});
+
     fetch("/api/transactions", { cache: "no-store" }).then(r => r.json()).then(d => {
       if (Array.isArray(d)) {
         const income = d.filter((t: any) => t.type !== 'expense' && t.verified).reduce((s: number, t: any) => s + (t.amount || 0), 0);
@@ -25,6 +35,28 @@ export default function Dashboard() {
         setStats(p => ({ ...p, transactions: d.length, balance: income - expenses }));
       }
     }).catch(() => {});
+  };
+
+  useEffect(() => {
+    setDarkMode(localStorage.getItem('kinoo_theme') === 'dark');
+    fetchAll();
+  }, []);
+
+  // Auto-refresh every 15 seconds
+  useEffect(() => {
+    const interval = setInterval(() => { fetchAll(); }, 15000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Refresh when tab becomes visible
+  useEffect(() => {
+    const handleVisibility = () => { if (!document.hidden) fetchAll(); };
+    document.addEventListener('visibilitychange', handleVisibility);
+    window.addEventListener('focus', handleVisibility);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibility);
+      window.removeEventListener('focus', handleVisibility);
+    };
   }, []);
 
   useEffect(() => {
@@ -48,6 +80,7 @@ export default function Dashboard() {
       if (res.ok) {
         toast.success("Check your phone for M-Pesa prompt!");
         setAmount("");
+        fetchAll();
       } else {
         toast.error(data.error || "M-Pesa failed");
       }
@@ -73,7 +106,7 @@ export default function Dashboard() {
     <div style={{ color: textColor }}>
       <div style={{ background: 'linear-gradient(135deg, #1a1a2e, #16213e)', color: 'white', padding: '25px', borderRadius: '16px', marginBottom: '20px' }}>
         <h1 style={{ fontSize: '26px', marginBottom: '5px' }}>Welcome to Kinoo YSC!</h1>
-        <p style={{ opacity: '0.8' }}>kINOO YSC</p>
+        <p style={{ opacity: '0.8' }}>Youth Group Management</p>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '15px', marginBottom: '20px' }}>
@@ -145,7 +178,7 @@ export default function Dashboard() {
               📱 Send M-Pesa Prompt
             </button>
             <p style={{ fontSize: '12px', opacity: '0.6', marginTop: '12px', lineHeight: '1.5' }}>
-              You'll receive a prompt on your phone. Enter your M-Pesa PIN to complete the contribution.
+              You'll receive a prompt on your phone. Enter your M-Pesa PIN to complete.
             </p>
           </div>
         </div>

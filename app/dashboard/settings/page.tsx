@@ -22,7 +22,25 @@ export default function SettingsPage() {
     fetch("/api/reports").then(r => r.json()).then(setReports).catch(() => {});
     fetch("/api/audit").then(r => r.json()).then(d => { if (Array.isArray(d)) setAuditLogs(d); }).catch(() => {});
     fetch("/api/settings").then(r => r.json()).then(d => { if (d) setMpesaSettings(d); }).catch(() => {});
-    fetch("/api/users").then(r => r.json()).then(d => { if (Array.isArray(d)) setPhotoUsers(d.filter((u: any) => u.status === 'active')); }).catch(() => {});
+  }, []);
+
+  // Auto-refresh users every 15 seconds
+  useEffect(() => {
+    const interval = setInterval(() => {
+      refreshUsers();
+    }, 15000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Refresh when returning to the tab
+  useEffect(() => {
+    const handleVisibility = () => { if (!document.hidden) refreshUsers(); };
+    document.addEventListener('visibilitychange', handleVisibility);
+    window.addEventListener('focus', handleVisibility);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibility);
+      window.removeEventListener('focus', handleVisibility);
+    };
   }, []);
 
   const textColor = darkMode ? '#e2e8f0' : '#1e293b';
@@ -34,10 +52,11 @@ export default function SettingsPage() {
   const allRoles = ['father', 'moderator', 'secretary', 'treasurer', 'organizing_secretary', 'vice_secretary', 'liturgist', 'vice_moderator', 'patron_matron', 'member'];
 
   const refreshUsers = () => {
-    fetch("/api/users", { credentials: "include" }).then(r => r.json()).then(d => {
+    fetch("/api/users", { cache: "no-store", credentials: "include" }).then(r => r.json()).then(d => {
       if (Array.isArray(d)) {
-        setUsers(d.filter((u: any) => u.status === 'active'));
-        setPhotoUsers(d.filter((u: any) => u.status === 'active'));
+        const active = d.filter((u: any) => u.status === 'active');
+        setUsers(active);
+        setPhotoUsers(active);
       }
     }).catch(() => {});
   };
@@ -45,6 +64,8 @@ export default function SettingsPage() {
   const assignRole = async (userId: string, role: string) => {
     await fetch("/api/assign-role", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ userId, role }) });
     toast.success(`Role assigned: ${role}`);
+    // Optimistic update
+    setUsers(prev => prev.map(u => u._id === userId ? { ...u, roles: [...(u.roles || []), role] } : u));
     refreshUsers();
   };
 
@@ -55,10 +76,18 @@ export default function SettingsPage() {
 
   const deleteUser = async (userId: string, name: string) => {
     if (!confirm(`Delete ${name}? This cannot be undone.`)) return;
+    // Optimistic removal - instantly removes from UI
+    setUsers(prev => prev.filter(u => u._id !== userId));
+    setPhotoUsers(prev => prev.filter(u => u._id !== userId));
     const res = await fetch(`/api/delete-user?userId=${userId}`, { method: 'DELETE' });
     const data = await res.json();
-    if (res.ok) { toast.success(data.message); refreshUsers(); }
-    else toast.error(data.error || "Delete failed");
+    if (res.ok) {
+      toast.success(data.message);
+      refreshUsers();
+    } else {
+      toast.error(data.error || "Delete failed");
+      refreshUsers();
+    }
   };
 
   const bulkApprove = async () => {
@@ -112,10 +141,13 @@ export default function SettingsPage() {
   };
 
   const removePhoto = async (userId: string) => {
+    // Optimistic removal
+    setPhotoUsers(prev => prev.map(p => p._id === userId ? { ...p, photo: undefined } : p));
     const res = await fetch(`/api/upload-photo?userId=${userId}`, { method: 'DELETE' });
-    if (res.ok) {
-      toast.success("Photo removed");
-      setPhotoUsers(prev => prev.map(p => p._id === userId ? { ...p, photo: undefined } : p));
+    if (res.ok) toast.success("Photo removed");
+    else {
+      toast.error("Failed to remove photo");
+      refreshUsers();
     }
   };
 
@@ -123,6 +155,19 @@ export default function SettingsPage() {
     if (resetConfirm !== "RESET") { toast.error("Type RESET to confirm"); return; }
     if (!confirm(`Reset ${resetScope}? This cannot be undone.`)) return;
     setResetLoading(true);
+
+    // Optimistic UI clear
+    if (resetScope === 'all') {
+      setUsers([]);
+      setPhotoUsers([]);
+      setReports(null);
+      setAuditLogs([]);
+    } else if (resetScope === 'transactions') {
+      setReports(null);
+    } else if (resetScope === 'events') {
+      setReports(null);
+    }
+
     const res = await fetch("/api/reset-system", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -134,8 +179,10 @@ export default function SettingsPage() {
       toast.success("System reset complete!");
       setResetConfirm("");
       refreshUsers();
+      fetch("/api/reports").then(r => r.json()).then(setReports).catch(() => {});
     } else {
       toast.error(data.error || "Reset failed");
+      refreshUsers();
     }
   };
 
@@ -152,7 +199,10 @@ export default function SettingsPage() {
 
   return (
     <div style={{ color: textColor }}>
-      <h1 style={{ fontSize: '28px', marginBottom: '20px' }}>⚙️ Settings Console</h1>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px', marginBottom: '20px' }}>
+        <h1 style={{ fontSize: '28px' }}>⚙️ Settings Console</h1>
+        <button onClick={() => { refreshUsers(); fetch("/api/reports").then(r => r.json()).then(setReports).catch(() => {}); toast.success("Refreshed!"); }} style={{ background: darkMode ? '#334155' : '#e5e7eb', color: textColor, border: 'none', padding: '8px 16px', borderRadius: '8px', cursor: 'pointer', fontSize: '13px' }}>🔄 Refresh</button>
+      </div>
 
       <div style={{ display: 'flex', gap: '5px', marginBottom: '20px', flexWrap: 'wrap' }}>
         {tabs.map(t => (
@@ -189,7 +239,7 @@ export default function SettingsPage() {
       {activeTab === 'roles' && (
         <div style={cardStyle}>
           <h2 style={{ marginBottom: '15px' }}>Assign Roles ({users.length})</h2>
-          {users.map((u: any) => (
+          {users.length === 0 ? <p style={{ opacity: '0.7' }}>No active members. Add some from Bulk & Import tab.</p> : users.map((u: any) => (
             <div key={u._id} style={{ padding: '15px', borderBottom: `1px solid ${borderColor}` }}>
               <p style={{ fontWeight: '600' }}>{u.fullName}</p>
               <p style={{ fontSize: '13px', opacity: '0.7' }}>{u.phone} — Current: {u.roles?.join(', ')}</p>
