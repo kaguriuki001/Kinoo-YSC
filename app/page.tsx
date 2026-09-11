@@ -5,7 +5,7 @@ import Link from "next/link";
 import { toast } from "sonner";
 
 export default function Login() {
-  const [phone, setPhone] = useState("");
+  const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -20,15 +20,11 @@ export default function Login() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!phone || !password) { toast.error("Fill all fields"); return; }
+    if (!identifier || !password) { toast.error("Fill all fields"); return; }
     setLoading(true);
 
-    let formattedPhone = phone.replace(/\D/g, "");
-    if (formattedPhone.startsWith("0")) formattedPhone = "254" + formattedPhone.substring(1);
-    if (formattedPhone.startsWith("7")) formattedPhone = "254" + formattedPhone;
-
     const result = await signIn("credentials", {
-      phone: formattedPhone,
+      identifier: identifier.trim(),
       password,
       redirect: false
     });
@@ -44,7 +40,7 @@ export default function Login() {
       } catch (e) {}
       window.location.href = "/dashboard";
     } else {
-      toast.error("Invalid phone or password");
+      toast.error("Invalid credentials. Check phone/name and password.");
       setLoading(false);
     }
   };
@@ -128,15 +124,16 @@ export default function Login() {
             <span style={{ fontSize: '32px', fontWeight: 'bold', color: 'white' }}>K</span>
           </div>
           <h1 style={{ fontSize: '28px', fontWeight: 'bold', color: '#1a1a2e', marginBottom: '5px' }}>Kinoo YSC</h1>
-          <p style={{ color: '#666', fontSize: '14px' }}>kINOO YSC</p>
+          <p style={{ color: '#666', fontSize: '14px' }}>Youth Group Management</p>
         </div>
 
         {!showForgot ? (
           <>
             <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
               <div>
-                <label style={{ display: 'block', marginBottom: '5px', fontSize: '14px', fontWeight: '500', color: '#333' }}>Phone Number</label>
-                <input type="tel" placeholder="e.g., 0712345678" value={phone} onChange={(e) => setPhone(e.target.value)} style={inputStyle} required />
+                <label style={{ display: 'block', marginBottom: '5px', fontSize: '14px', fontWeight: '500', color: '#333' }}>Phone or Full Name</label>
+                <input type="text" placeholder="e.g., 0712345678 or John Kamau" value={identifier} onChange={(e) => setIdentifier(e.target.value)} style={inputStyle} required />
+                <p style={{ fontSize: '11px', color: '#999', marginTop: '4px' }}>Use either your phone number or full name</p>
               </div>
               <div>
                 <label style={{ display: 'block', marginBottom: '5px', fontSize: '14px', fontWeight: '500', color: '#333' }}>Password</label>
@@ -169,16 +166,8 @@ export default function Login() {
 
             {forgotStep === 1 && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-                <p style={{ fontSize: '13px', color: '#666', lineHeight: '1.5' }}>
-                  Enter your registered phone number. We'll send you a 6-digit OTP to reset your password.
-                </p>
-                <input
-                  type="tel"
-                  placeholder="e.g., 0712345678"
-                  value={forgotPhone}
-                  onChange={(e) => setForgotPhone(e.target.value)}
-                  style={inputStyle}
-                />
+                <p style={{ fontSize: '13px', color: '#666', lineHeight: '1.5' }}>Enter your registered phone number. We'll send you a 6-digit OTP.</p>
+                <input type="tel" placeholder="e.g., 0712345678" value={forgotPhone} onChange={(e) => setForgotPhone(e.target.value)} style={inputStyle} />
                 <button onClick={requestOTP} disabled={resetLoading} style={{ ...btnStyle, background: 'linear-gradient(135deg, #16a34a, #15803d)', opacity: resetLoading ? 0.6 : 1 }}>
                   {resetLoading ? "Sending..." : "Send OTP"}
                 </button>
@@ -191,38 +180,15 @@ export default function Login() {
                   <div style={{ padding: '12px', background: '#fef3c7', borderRadius: '8px', border: '1px solid #f59e0b' }}>
                     <p style={{ fontSize: '12px', color: '#92400e', marginBottom: '5px' }}>🔧 Dev Mode OTP:</p>
                     <p style={{ fontSize: '24px', fontWeight: 'bold', color: '#92400e', letterSpacing: '4px', textAlign: 'center' }}>{devOTP}</p>
-                    <p style={{ fontSize: '11px', color: '#92400e', marginTop: '5px' }}>In production this will be sent via SMS</p>
                   </div>
                 )}
-
-                <input
-                  type="text"
-                  placeholder="Enter 6-digit OTP"
-                  value={otp}
-                  onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                  maxLength={6}
-                  style={{ ...inputStyle, textAlign: 'center' as const, letterSpacing: '8px', fontSize: '20px', fontWeight: 'bold' }}
-                />
-                <input
-                  type="password"
-                  placeholder="New password (min 6 characters)"
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  style={inputStyle}
-                />
-                <input
-                  type="password"
-                  placeholder="Confirm new password"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  style={inputStyle}
-                />
+                <input type="text" placeholder="Enter 6-digit OTP" value={otp} onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))} maxLength={6} style={{ ...inputStyle, textAlign: 'center' as const, letterSpacing: '8px', fontSize: '20px', fontWeight: 'bold' }} />
+                <input type="password" placeholder="New password (min 6 characters)" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} style={inputStyle} />
+                <input type="password" placeholder="Confirm new password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} style={inputStyle} />
                 <button onClick={resetPassword} disabled={resetLoading} style={{ ...btnStyle, background: 'linear-gradient(135deg, #16a34a, #15803d)', opacity: resetLoading ? 0.6 : 1 }}>
                   {resetLoading ? "Resetting..." : "Reset Password"}
                 </button>
-                <button onClick={() => setForgotStep(1)} style={{ background: 'none', border: 'none', color: '#0f3460', cursor: 'pointer', fontSize: '13px', textDecoration: 'underline', padding: 0 }}>
-                  ← Request new OTP
-                </button>
+                <button onClick={() => setForgotStep(1)} style={{ background: 'none', border: 'none', color: '#0f3460', cursor: 'pointer', fontSize: '13px', textDecoration: 'underline', padding: 0 }}>← Request new OTP</button>
               </div>
             )}
           </div>

@@ -12,6 +12,9 @@ export default function SettingsPage() {
   const [csvData, setCsvData] = useState("");
   const [mpesaSettings, setMpesaSettings] = useState({ paybill: "", tillNumber: "", accountNumber: "", accountName: "", organizationName: "Kinoo YSC" });
   const [photoUsers, setPhotoUsers] = useState<any[]>([]);
+  const [resetScope, setResetScope] = useState("all");
+  const [resetConfirm, setResetConfirm] = useState("");
+  const [resetLoading, setResetLoading] = useState(false);
 
   useEffect(() => {
     setDarkMode(localStorage.getItem('kinoo_theme') === 'dark');
@@ -42,13 +45,20 @@ export default function SettingsPage() {
   const assignRole = async (userId: string, role: string) => {
     await fetch("/api/assign-role", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ userId, role }) });
     toast.success(`Role assigned: ${role}`);
-    await fetch("/api/audit", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "assign_role", performedBy: "admin", targetUser: userId, reason: role }) });
     refreshUsers();
   };
 
   const resetPass = async (userId: string) => {
     await fetch("/api/reset-password", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ userId, newPassword: "Kinoo123!" }) });
     toast.success("Password reset to: Kinoo123!");
+  };
+
+  const deleteUser = async (userId: string, name: string) => {
+    if (!confirm(`Delete ${name}? This cannot be undone.`)) return;
+    const res = await fetch(`/api/delete-user?userId=${userId}`, { method: 'DELETE' });
+    const data = await res.json();
+    if (res.ok) { toast.success(data.message); refreshUsers(); }
+    else toast.error(data.error || "Delete failed");
   };
 
   const bulkApprove = async () => {
@@ -109,6 +119,26 @@ export default function SettingsPage() {
     }
   };
 
+  const resetSystem = async () => {
+    if (resetConfirm !== "RESET") { toast.error("Type RESET to confirm"); return; }
+    if (!confirm(`Reset ${resetScope}? This cannot be undone.`)) return;
+    setResetLoading(true);
+    const res = await fetch("/api/reset-system", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ confirm: "RESET", scope: resetScope })
+    });
+    const data = await res.json();
+    setResetLoading(false);
+    if (res.ok) {
+      toast.success("System reset complete!");
+      setResetConfirm("");
+      refreshUsers();
+    } else {
+      toast.error(data.error || "Reset failed");
+    }
+  };
+
   const tabs = [
     { id: 'overview', label: '📊 Overview' },
     { id: 'roles', label: '👥 Roles' },
@@ -117,6 +147,7 @@ export default function SettingsPage() {
     { id: 'photos', label: '📸 Photos' },
     { id: 'reports', label: '📈 Reports' },
     { id: 'audit', label: '🔒 Audit Log' },
+    { id: 'data', label: '🗑️ Data Management' },
   ];
 
   return (
@@ -161,14 +192,15 @@ export default function SettingsPage() {
           {users.map((u: any) => (
             <div key={u._id} style={{ padding: '15px', borderBottom: `1px solid ${borderColor}` }}>
               <p style={{ fontWeight: '600' }}>{u.fullName}</p>
-              <p style={{ fontSize: '13px', opacity: '0.7' }}>Current: {u.roles?.join(', ')}</p>
+              <p style={{ fontSize: '13px', opacity: '0.7' }}>{u.phone} — Current: {u.roles?.join(', ')}</p>
               <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap', marginTop: '8px' }}>
                 {allRoles.filter((r: string) => !u.roles?.includes(r)).map((r: string) => (
                   <button key={r} onClick={() => assignRole(u._id, r)} style={{ background: '#3b82f6', color: 'white', border: 'none', padding: '5px 12px', borderRadius: '4px', cursor: 'pointer', fontSize: '12px' }}>
                     + {r.replace('_', ' ')}
                   </button>
                 ))}
-                <button onClick={() => resetPass(u._id)} style={{ background: '#f97316', color: 'white', border: 'none', padding: '5px 12px', borderRadius: '4px', cursor: 'pointer', fontSize: '12px' }}>Reset Password</button>
+                <button onClick={() => resetPass(u._id)} style={{ background: '#f97316', color: 'white', border: 'none', padding: '5px 12px', borderRadius: '4px', cursor: 'pointer', fontSize: '12px' }}>🔑 Reset Password</button>
+                <button onClick={() => deleteUser(u._id, u.fullName)} style={{ background: '#ef4444', color: 'white', border: 'none', padding: '5px 12px', borderRadius: '4px', cursor: 'pointer', fontSize: '12px' }}>🗑️ Delete</button>
               </div>
             </div>
           ))}
@@ -223,7 +255,7 @@ export default function SettingsPage() {
             <input value={mpesaSettings.accountNumber} onChange={(e) => setMpesaSettings({...mpesaSettings, accountNumber: e.target.value})} placeholder="e.g., KINOOYSC" style={inputStyle} />
 
             <label style={{ fontSize: '13px', opacity: '0.7' }}>Account Name</label>
-            <input value={mpesaSettings.accountName} onChange={(e) => setMpesaSettings({...mpesaSettings, accountName: e.target.value})} placeholder="e.g., Kinoo kINOO YSC" style={inputStyle} />
+            <input value={mpesaSettings.accountName} onChange={(e) => setMpesaSettings({...mpesaSettings, accountName: e.target.value})} placeholder="e.g., Kinoo Youth Group" style={inputStyle} />
 
             <button onClick={saveMpesaSettings} style={{ background: '#16a34a', color: 'white', border: 'none', padding: '12px 24px', borderRadius: '8px', cursor: 'pointer', fontWeight: '600', width: '100%', marginTop: '10px' }}>
               💾 Save M-Pesa Settings
@@ -283,6 +315,35 @@ export default function SettingsPage() {
               {a.reason && <p style={{ opacity: '0.7' }}>{a.reason}</p>}
             </div>
           ))}
+        </div>
+      )}
+
+      {activeTab === 'data' && (
+        <div style={cardStyle}>
+          <h2 style={{ marginBottom: '15px' }}>🗑️ Data Management</h2>
+
+          <div style={{ padding: '20px', border: `2px solid #ef4444`, borderRadius: '10px', background: darkMode ? '#1e293b' : '#fef2f2' }}>
+            <h3 style={{ marginBottom: '15px', color: '#ef4444' }}>⚠️ Danger Zone</h3>
+            <p style={{ fontSize: '13px', opacity: '0.8', marginBottom: '20px', lineHeight: '1.6', color: textColor }}>
+              Reset system data. This action <strong>CANNOT</strong> be undone. Your admin account(s) will be preserved.
+            </p>
+
+            <label style={{ fontSize: '13px', opacity: '0.7', display: 'block', marginBottom: '8px', color: textColor }}>What to reset:</label>
+            <select value={resetScope} onChange={(e) => setResetScope(e.target.value)} style={inputStyle}>
+              <option value="all">🌐 Everything (keep admins only)</option>
+              <option value="transactions">💰 Transactions only</option>
+              <option value="events">📅 Events only</option>
+              <option value="fragos">🎯 FRAGOs only</option>
+              <option value="notifications">🔔 Notifications only</option>
+            </select>
+
+            <label style={{ fontSize: '13px', opacity: '0.7', display: 'block', marginBottom: '8px', marginTop: '15px', color: textColor }}>Type RESET to confirm:</label>
+            <input value={resetConfirm} onChange={(e) => setResetConfirm(e.target.value)} placeholder="Type RESET" style={inputStyle} />
+
+            <button onClick={resetSystem} disabled={resetLoading} style={{ background: '#ef4444', color: 'white', border: 'none', padding: '12px 24px', borderRadius: '8px', cursor: 'pointer', fontWeight: '600', width: '100%', marginTop: '15px', opacity: resetLoading ? 0.6 : 1 }}>
+              {resetLoading ? "Resetting..." : "🚨 Reset Now"}
+            </button>
+          </div>
         </div>
       )}
     </div>
