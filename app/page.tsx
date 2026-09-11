@@ -62,7 +62,7 @@ export default function Login() {
       setResetLoading(false);
       if (res.ok) {
         setDevOTP(data.otp);
-        toast.success("OTP generated! Check below for dev mode.");
+        toast.success("OTP generated!");
         setForgotStep(2);
       } else {
         toast.error(data.error || "Failed to send OTP");
@@ -117,7 +117,7 @@ export default function Login() {
     setDevOTP("");
   };
 
-  const inputStyle = { width: '100%', padding: '14px', borderRadius: '10px', border: '1px solid #ddd', fontSize: '16px', outline: 'none' };
+  const inputStyle = { width: '100%', padding: '14px', borderRadius: '10px', border: '1px solid #ddd', fontSize: '16px', outline: 'none', boxSizing: 'border-box' as const };
   const btnStyle = { width: '100%', padding: '14px', background: 'linear-gradient(135deg, #1a1a2e, #0f3460)', color: 'white', border: 'none', borderRadius: '10px', fontSize: '16px', fontWeight: '600' as const, cursor: 'pointer' };
 
   return (
@@ -128,7 +128,7 @@ export default function Login() {
             <span style={{ fontSize: '32px', fontWeight: 'bold', color: 'white' }}>K</span>
           </div>
           <h1 style={{ fontSize: '28px', fontWeight: 'bold', color: '#1a1a2e', marginBottom: '5px' }}>Kinoo YSC</h1>
-          <p style={{ color: '#666', fontSize: '14px' }}>Youth Sports Club Management</p>
+          <p style={{ color: '#666', fontSize: '14px' }}>kINOO YSC</p>
         </div>
 
         {!showForgot ? (
@@ -201,7 +201,7 @@ export default function Login() {
                   value={otp}
                   onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
                   maxLength={6}
-                  style={{ ...inputStyle, textAlign: 'center', letterSpacing: '8px', fontSize: '20px', fontWeight: 'bold' }}
+                  style={{ ...inputStyle, textAlign: 'center' as const, letterSpacing: '8px', fontSize: '20px', fontWeight: 'bold' }}
                 />
                 <input
                   type="password"
@@ -228,7 +228,7 @@ export default function Login() {
           </div>
         )}
 
-        <p style={{ textAlign: 'center', marginTop: '20px', fontSize: '12px', color: '#999' }}>© 2026 Kinoo Youth Sports Club</p>
+        <p style={{ textAlign: 'center', marginTop: '20px', fontSize: '12px', color: '#999' }}>© 2026 Kinoo YSC</p>
       </div>
     </div>
   );

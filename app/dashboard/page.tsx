@@ -59,7 +59,7 @@ export default function Dashboard() {
 
   const textColor = darkMode ? '#e2e8f0' : '#1e293b';
   const cardStyle = { background: darkMode ? '#1e293b' : 'white', padding: '20px', borderRadius: '12px', border: `1px solid ${darkMode ? '#334155' : '#e5e7eb'}`, color: textColor };
-  const inputStyle = { width: '100%', padding: '12px', borderRadius: '8px', border: `1px solid ${darkMode ? '#475569' : '#ddd'}`, marginBottom: '10px', background: darkMode ? '#334155' : 'white', color: textColor };
+  const inputStyle = { width: '100%', padding: '12px', borderRadius: '8px', border: `1px solid ${darkMode ? '#475569' : '#ddd'}`, marginBottom: '10px', background: darkMode ? '#334155' : 'white', color: textColor, boxSizing: 'border-box' as const };
 
   const tabs = [
     { id: 'overview', label: '📊 Overview' },
@@ -73,7 +73,7 @@ export default function Dashboard() {
     <div style={{ color: textColor }}>
       <div style={{ background: 'linear-gradient(135deg, #1a1a2e, #16213e)', color: 'white', padding: '25px', borderRadius: '16px', marginBottom: '20px' }}>
         <h1 style={{ fontSize: '26px', marginBottom: '5px' }}>Welcome to Kinoo YSC!</h1>
-        <p style={{ opacity: '0.8' }}>Youth Sports Club Management</p>
+        <p style={{ opacity: '0.8' }}>kINOO YSC</p>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '15px', marginBottom: '20px' }}>

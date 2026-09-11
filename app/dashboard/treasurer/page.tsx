@@ -19,20 +19,14 @@ export default function TreasurerPage() {
     fetchAll();
   }, []);
 
-  // Auto-refresh every 10 seconds
   useEffect(() => {
     if (!autoRefresh) return;
-    const interval = setInterval(() => {
-      fetchAll();
-    }, 10000);
+    const interval = setInterval(() => { fetchAll(); }, 10000);
     return () => clearInterval(interval);
   }, [autoRefresh]);
 
-  // Refresh when user comes back to tab
   useEffect(() => {
-    const handleVisibility = () => {
-      if (!document.hidden) fetchAll();
-    };
+    const handleVisibility = () => { if (!document.hidden) fetchAll(); };
     document.addEventListener('visibilitychange', handleVisibility);
     window.addEventListener('focus', handleVisibility);
     return () => {
@@ -45,7 +39,7 @@ export default function TreasurerPage() {
   const bgColor = darkMode ? '#1e293b' : '#ffffff';
   const borderColor = darkMode ? '#334155' : '#e5e7eb';
   const cardStyle = { background: bgColor, padding: '20px', borderRadius: '12px', border: `1px solid ${borderColor}`, color: textColor };
-  const inputStyle = { width: '100%', padding: '12px', borderRadius: '8px', border: `1px solid ${borderColor}`, background: darkMode ? '#334155' : 'white', color: textColor, marginBottom: '10px' };
+  const inputStyle = { width: '100%', padding: '12px', borderRadius: '8px', border: `1px solid ${borderColor}`, background: darkMode ? '#334155' : 'white', color: textColor, marginBottom: '10px', boxSizing: 'border-box' as const };
 
   const fetchAll = useCallback(async () => {
     try {
@@ -77,9 +71,8 @@ export default function TreasurerPage() {
     });
     const data = await res.json();
     if (res.ok) {
-      toast.success("Transaction added! Dashboard updating...");
+      toast.success("Transaction added!");
       setTxForm({ amount: "", purpose: "", type: "income", description: "", memberId: "" });
-      // Instant refresh
       await fetchAll();
     } else toast.error(data.error || "Failed");
   };
@@ -131,11 +124,7 @@ export default function TreasurerPage() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px', marginBottom: '20px' }}>
         <h1 style={{ fontSize: '28px' }}>💰 Treasurer Console</h1>
         <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-          {lastUpdated && (
-            <span style={{ fontSize: '12px', opacity: '0.6' }}>
-              Updated: {lastUpdated.toLocaleTimeString()}
-            </span>
-          )}
+          {lastUpdated && (<span style={{ fontSize: '12px', opacity: '0.6' }}>Updated: {lastUpdated.toLocaleTimeString()}</span>)}
           <button onClick={manualRefresh} style={{ background: darkMode ? '#334155' : '#e5e7eb', color: textColor, border: 'none', padding: '8px 14px', borderRadius: '8px', cursor: 'pointer', fontSize: '13px' }}>🔄 Refresh</button>
           <button onClick={() => setAutoRefresh(!autoRefresh)} style={{ background: autoRefresh ? '#10b981' : darkMode ? '#334155' : '#e5e7eb', color: autoRefresh ? 'white' : textColor, border: 'none', padding: '8px 14px', borderRadius: '8px', cursor: 'pointer', fontSize: '13px' }}>
             {autoRefresh ? '🟢 Live' : '⚫ Paused'}
@@ -143,7 +132,6 @@ export default function TreasurerPage() {
         </div>
       </div>
 
-      {/* Financial Widgets - Auto-updating */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '15px', marginBottom: '20px' }}>
         <div style={{ background: 'linear-gradient(135deg, #16a34a, #15803d)', padding: '20px', borderRadius: '12px', color: 'white' }}>
           <p style={{ opacity: '0.9', fontSize: '13px' }}>Total Income</p>
@@ -164,9 +152,7 @@ export default function TreasurerPage() {
       </div>
 
       <div style={{ display: 'flex', gap: '5px', marginBottom: '20px', flexWrap: 'wrap' }}>
-        {tabs.map(t => (
-          <button key={t.id} onClick={() => setActiveTab(t.id)} style={{ padding: '10px 20px', border: 'none', borderRadius: '8px', cursor: 'pointer', background: activeTab === t.id ? '#16a34a' : darkMode ? '#334155' : '#e5e7eb', color: activeTab === t.id ? 'white' : textColor, fontSize: '14px' }}>{t.label}</button>
-        ))}
+        {tabs.map(t => (<button key={t.id} onClick={() => setActiveTab(t.id)} style={{ padding: '10px 20px', border: 'none', borderRadius: '8px', cursor: 'pointer', background: activeTab === t.id ? '#16a34a' : darkMode ? '#334155' : '#e5e7eb', color: activeTab === t.id ? 'white' : textColor, fontSize: '14px' }}>{t.label}</button>))}
       </div>
 
       {activeTab === 'ledger' && (
@@ -188,9 +174,7 @@ export default function TreasurerPage() {
                       <td style={{ padding: '10px', borderBottom: `1px solid ${borderColor}`, fontSize: '13px' }}>{new Date(t.date).toLocaleDateString()}</td>
                       <td style={{ padding: '10px', borderBottom: `1px solid ${borderColor}`, fontSize: '13px' }}>{t.purpose}</td>
                       <td style={{ padding: '10px', borderBottom: `1px solid ${borderColor}`, fontSize: '13px' }}>
-                        <span style={{ color: t.type === 'expense' ? '#ef4444' : '#10b981', fontWeight: '600' }}>
-                          {t.type === 'expense' ? '💸 Expense' : '💰 Income'}
-                        </span>
+                        <span style={{ color: t.type === 'expense' ? '#ef4444' : '#10b981', fontWeight: '600' }}>{t.type === 'expense' ? '💸 Expense' : '💰 Income'}</span>
                       </td>
                       <td style={{ padding: '10px', borderBottom: `1px solid ${borderColor}`, fontSize: '13px', fontWeight: '600' }}>KES {(t.amount || 0).toLocaleString()}</td>
                       <td style={{ padding: '10px', borderBottom: `1px solid ${borderColor}`, fontSize: '13px', opacity: '0.7' }}>{t.fromUser?.fullName || '—'}</td>
@@ -232,15 +216,13 @@ export default function TreasurerPage() {
         <div>
           <div style={{ ...cardStyle, marginBottom: '20px' }}>
             <h2 style={{ marginBottom: '15px' }}>Create Budget</h2>
-            <input placeholder="Budget Title (e.g., Youth Retreat 2026)" value={budgetForm.title} onChange={(e) => setBudgetForm({ ...budgetForm, title: e.target.value })} style={inputStyle} />
+            <input placeholder="Budget Title" value={budgetForm.title} onChange={(e) => setBudgetForm({ ...budgetForm, title: e.target.value })} style={inputStyle} />
             <label style={{ fontSize: '13px', opacity: '0.7' }}>Items</label>
             {budgetForm.items.map((item, idx) => (
               <div key={idx} style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
                 <input placeholder="Item name" value={item.name} onChange={(e) => updateBudgetLine(idx, 'name', e.target.value)} style={{ ...inputStyle, marginBottom: 0, flex: 2 }} />
                 <input type="number" placeholder="Cost" value={item.estimatedCost} onChange={(e) => updateBudgetLine(idx, 'estimatedCost', e.target.value)} style={{ ...inputStyle, marginBottom: 0, flex: 1 }} />
-                {budgetForm.items.length > 1 && (
-                  <button onClick={() => removeBudgetLine(idx)} style={{ background: '#ef4444', color: 'white', border: 'none', padding: '0 12px', borderRadius: '8px', cursor: 'pointer' }}>✕</button>
-                )}
+                {budgetForm.items.length > 1 && (<button onClick={() => removeBudgetLine(idx)} style={{ background: '#ef4444', color: 'white', border: 'none', padding: '0 12px', borderRadius: '8px', cursor: 'pointer' }}>✕</button>)}
               </div>
             ))}
             <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
@@ -268,9 +250,7 @@ export default function TreasurerPage() {
                 </div>
                 {b.items && b.items.length > 0 && (
                   <ul style={{ marginTop: '10px', marginLeft: '20px', fontSize: '13px', opacity: '0.8' }}>
-                    {b.items.map((i: any, idx: number) => (
-                      <li key={idx}>{i.name}: KES {(i.estimatedCost || 0).toLocaleString()}</li>
-                    ))}
+                    {b.items.map((i: any, idx: number) => (<li key={idx}>{i.name}: KES {(i.estimatedCost || 0).toLocaleString()}</li>))}
                   </ul>
                 )}
               </div>
@@ -285,16 +265,12 @@ export default function TreasurerPage() {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px', marginBottom: '20px' }}>
             <div style={{ padding: '16px', background: darkMode ? '#334155' : '#f0fdf4', borderRadius: '10px' }}>
               <p style={{ fontSize: '13px', opacity: '0.7' }}>Income Sources</p>
-              {Object.entries(transactions.filter(t => t.type !== 'expense').reduce((acc: any, t: any) => { acc[t.purpose] = (acc[t.purpose] || 0) + t.amount; return acc; }, {})).map(([k, v]: any) => (
-                <p key={k} style={{ fontSize: '14px' }}>{k}: <strong>KES {v.toLocaleString()}</strong></p>
-              ))}
+              {Object.entries(transactions.filter(t => t.type !== 'expense').reduce((acc: any, t: any) => { acc[t.purpose] = (acc[t.purpose] || 0) + t.amount; return acc; }, {})).map(([k, v]: any) => (<p key={k} style={{ fontSize: '14px' }}>{k}: <strong>KES {v.toLocaleString()}</strong></p>))}
               {transactions.filter(t => t.type !== 'expense').length === 0 && <p style={{ fontSize: '13px', opacity: '0.6' }}>No income yet</p>}
             </div>
             <div style={{ padding: '16px', background: darkMode ? '#334155' : '#fef2f2', borderRadius: '10px' }}>
               <p style={{ fontSize: '13px', opacity: '0.7' }}>Expense Categories</p>
-              {Object.entries(transactions.filter(t => t.type === 'expense').reduce((acc: any, t: any) => { acc[t.purpose] = (acc[t.purpose] || 0) + t.amount; return acc; }, {})).map(([k, v]: any) => (
-                <p key={k} style={{ fontSize: '14px' }}>{k}: <strong>KES {v.toLocaleString()}</strong></p>
-              ))}
+              {Object.entries(transactions.filter(t => t.type === 'expense').reduce((acc: any, t: any) => { acc[t.purpose] = (acc[t.purpose] || 0) + t.amount; return acc; }, {})).map(([k, v]: any) => (<p key={k} style={{ fontSize: '14px' }}>{k}: <strong>KES {v.toLocaleString()}</strong></p>))}
               {transactions.filter(t => t.type === 'expense').length === 0 && <p style={{ fontSize: '13px', opacity: '0.6' }}>No expenses yet</p>}
             </div>
           </div>

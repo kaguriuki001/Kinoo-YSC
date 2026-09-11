@@ -16,7 +16,7 @@ export default function LiturgistPage() {
   const bgColor = darkMode ? '#1e293b' : '#ffffff';
   const borderColor = darkMode ? '#334155' : '#e5e7eb';
   const cardStyle = { background: bgColor, padding: '20px', borderRadius: '12px', border: `1px solid ${borderColor}`, color: textColor };
-  const inputStyle = { width: '100%', padding: '12px', borderRadius: '8px', border: `1px solid ${borderColor}`, background: darkMode ? '#334155' : 'white', color: textColor };
+  const inputStyle = { width: '100%', padding: '12px', borderRadius: '8px', border: `1px solid ${borderColor}`, background: darkMode ? '#334155' : 'white', color: textColor, marginBottom: '10px', boxSizing: 'border-box' as const };
 
   const addPrayer = () => {
     if (!newPrayer.trim()) return;
@@ -43,7 +43,7 @@ export default function LiturgistPage() {
           <h2 style={{ marginBottom: '15px' }}>📖 Liturgy Calendar</h2>
           <p style={{ marginBottom: '10px' }}>Next Sunday: <strong>Reader - Assigned</strong></p>
           <p style={{ marginBottom: '10px' }}>Intercessor: <strong>To be assigned</strong></p>
-          <p style={{ marginBottom: '10px' }}>Choir: <strong>Youth Praise Team</strong></p>
+          <p style={{ marginBottom: '10px' }}>Choir: <strong>Kinoo YSC Praise Team</strong></p>
         </div>
       )}
 

@@ -26,7 +26,7 @@ export default function SettingsPage() {
   const bgColor = darkMode ? '#1e293b' : '#ffffff';
   const borderColor = darkMode ? '#334155' : '#e5e7eb';
   const cardStyle = { background: bgColor, padding: '20px', borderRadius: '12px', border: `1px solid ${borderColor}`, color: textColor };
-  const inputStyle = { width: '100%', padding: '10px', borderRadius: '8px', border: `1px solid ${borderColor}`, background: darkMode ? '#334155' : 'white', color: textColor, marginBottom: '10px', fontSize: '13px' };
+  const inputStyle = { width: '100%', padding: '10px', borderRadius: '8px', border: `1px solid ${borderColor}`, background: darkMode ? '#334155' : 'white', color: textColor, marginBottom: '10px', fontSize: '13px', boxSizing: 'border-box' as const };
 
   const allRoles = ['father', 'moderator', 'secretary', 'treasurer', 'organizing_secretary', 'vice_secretary', 'liturgist', 'vice_moderator', 'patron_matron', 'member'];
 
@@ -181,18 +181,9 @@ export default function SettingsPage() {
 
           <div style={{ marginBottom: '20px', padding: '15px', border: `1px solid ${borderColor}`, borderRadius: '8px' }}>
             <h3 style={{ marginBottom: '10px', fontSize: '15px' }}>📥 CSV Import Members</h3>
-            <p style={{ fontSize: '13px', opacity: '0.7', marginBottom: '10px' }}>
-              Format: <code>fullName,phone,idNumber</code> (one per line)
-            </p>
-            <textarea
-              value={csvData}
-              onChange={(e) => setCsvData(e.target.value)}
-              placeholder={"John Doe,0712345678,12345678\nJane Smith,0723456789,87654321"}
-              style={{ ...inputStyle, minHeight: '100px' }}
-            />
-            <button onClick={importCSV} style={{ background: '#8b5cf6', color: 'white', border: 'none', padding: '10px 15px', borderRadius: '6px', cursor: 'pointer' }}>
-              Import Members
-            </button>
+            <p style={{ fontSize: '13px', opacity: '0.7', marginBottom: '10px' }}>Format: <code>fullName,phone,idNumber</code> (one per line)</p>
+            <textarea value={csvData} onChange={(e) => setCsvData(e.target.value)} placeholder={"John Doe,0712345678,12345678\nJane Smith,0723456789,87654321"} style={{ ...inputStyle, minHeight: '100px' }} />
+            <button onClick={importCSV} style={{ background: '#8b5cf6', color: 'white', border: 'none', padding: '10px 15px', borderRadius: '6px', cursor: 'pointer' }}>Import Members</button>
           </div>
 
           <p style={{ marginBottom: '10px', opacity: '0.7' }}>Selected: {selectedUsers.length} members</p>
@@ -216,9 +207,7 @@ export default function SettingsPage() {
       {activeTab === 'mpesa' && (
         <div style={cardStyle}>
           <h2 style={{ marginBottom: '15px' }}>💰 M-Pesa Configuration</h2>
-          <p style={{ fontSize: '13px', opacity: '0.7', marginBottom: '20px' }}>
-            Set the payment destination for member contributions.
-          </p>
+          <p style={{ fontSize: '13px', opacity: '0.7', marginBottom: '20px' }}>Set the payment destination for member contributions.</p>
 
           <div style={{ maxWidth: '500px' }}>
             <label style={{ fontSize: '13px', opacity: '0.7' }}>Organization Name</label>
@@ -234,7 +223,7 @@ export default function SettingsPage() {
             <input value={mpesaSettings.accountNumber} onChange={(e) => setMpesaSettings({...mpesaSettings, accountNumber: e.target.value})} placeholder="e.g., KINOOYSC" style={inputStyle} />
 
             <label style={{ fontSize: '13px', opacity: '0.7' }}>Account Name</label>
-            <input value={mpesaSettings.accountName} onChange={(e) => setMpesaSettings({...mpesaSettings, accountName: e.target.value})} placeholder="e.g., Kinoo Youth Sports Club" style={inputStyle} />
+            <input value={mpesaSettings.accountName} onChange={(e) => setMpesaSettings({...mpesaSettings, accountName: e.target.value})} placeholder="e.g., Kinoo kINOO YSC" style={inputStyle} />
 
             <button onClick={saveMpesaSettings} style={{ background: '#16a34a', color: 'white', border: 'none', padding: '12px 24px', borderRadius: '8px', cursor: 'pointer', fontWeight: '600', width: '100%', marginTop: '10px' }}>
               💾 Save M-Pesa Settings
