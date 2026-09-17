@@ -1,49 +1,91 @@
 import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
+import mongoose from "mongoose";
+
+async function getDB() {
+  const MONGODB_URI = process.env.MONGODB_URI || "";
+  if (!MONGODB_URI) throw new Error("MONGODB_URI missing");
+  if (mongoose.connection.readyState === 0) {
+    await mongoose.connect(MONGODB_URI, { bufferCommands: false });
+  }
+  return mongoose.connection.db;
+}
+
+function formatPhone(phone: string): string {
+  let p = phone.replace(/\D/g, "");
+  if (p.startsWith("0")) p = "254" + p.substring(1);
+  if (p.startsWith("7") || p.startsWith("1")) p = "254" + p;
+  return p;
+}
 
 export async function POST(req: NextRequest) {
   try {
-    const { fullName, phone, password, idNumber } = await req.json();
+    const { fullName, phone, password, idNumber, outstation, paidCash } = await req.json();
 
     if (!fullName || !phone || !password) {
-      return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
+      return NextResponse.json({ error: "Full name, phone and password required" }, { status: 400 });
     }
 
-    let formattedPhone = phone.replace(/\D/g, "");
-    if (formattedPhone.startsWith("0")) formattedPhone = "254" + formattedPhone.substring(1);
-    if (formattedPhone.startsWith("7")) formattedPhone = "254" + formattedPhone;
+    if (password.length < 6) {
+      return NextResponse.json({ error: "Password must be at least 6 characters" }, { status: 400 });
+    }
 
-    const { connectDB } = await import("@/lib/db");
-    const User = (await import("@/models/User")).default;
-    await connectDB();
+    if (!outstation || !['Uthiru', 'Kagondo', 'Kinoo'].includes(outstation)) {
+      return NextResponse.json({ error: "Valid outstation required (Uthiru, Kagondo, Kinoo)" }, { status: 400 });
+    }
 
-    const existing = await User.findOne({ phone: formattedPhone });
-    if (existing) return NextResponse.json({ error: "Phone already registered" }, { status: 400 });
+    const formattedPhone = formatPhone(phone);
+    const db = await getDB();
+    if (!db) throw new Error("DB failed");
+
+    const existing = await db.collection('users').findOne({ phone: formattedPhone });
+    if (existing) {
+      return NextResponse.json({ error: "Phone already registered" }, { status: 400 });
+    }
 
     const passwordHash = await bcrypt.hash(password, 12);
-    const totalUsers = await User.countDocuments();
+    const totalUsers = await db.collection('users').countDocuments();
 
-    const ALL_ROLES = ['father', 'moderator', 'secretary', 'treasurer', 'organizing_secretary', 'vice_secretary', 'liturgist', 'vice_moderator', 'patron_matron', 'member'];
+    let roles = ['member'];
+    let status = 'active';
 
-    const roles = totalUsers === 0 ? ALL_ROLES : ['member'];
-    const status = totalUsers === 0 ? 'active' : 'pending';
+    if (totalUsers === 0) {
+      roles = ['father', 'moderator', 'member'];
+      status = 'active';
+    } else {
+      roles = ['member'];
+      status = 'active';
+    }
 
-    await User.create({
+    const result = await db.collection('users').insertOne({
       fullName,
       phone: formattedPhone,
       passwordHash,
-      idNumber,
+      idNumber: idNumber || null,
+      outstation,
+      roles,
       status,
-      roles
+      paidCash: paidCash === true,
+      registrationFee: 100,
+      photo: null,
+      pairId: null,
+      twoFactorEnabled: false,
+      whatsappRegistered: false,
+      createdAt: new Date(),
+      __v: 0
     });
 
-    return NextResponse.json({ 
-      message: status === 'active' ? "Registration successful! You are the Supreme Admin." : "Registration submitted for approval.",
-      status 
+    return NextResponse.json({
+      message: roles.includes('father')
+        ? "Welcome! You are the founding admin."
+        : "Registration successful! You are now a member.",
+      userId: result.insertedId.toString(),
+      roles,
+      memberNumber: totalUsers + 1
     });
 
   } catch (error: any) {
     console.error("Registration error:", error);
-    return NextResponse.json({ error: "Registration failed" }, { status: 500 });
+    return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
