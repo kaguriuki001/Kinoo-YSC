@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<any>({ name: 'User', roles: ['moderator', 'father', 'secretary', 'treasurer', 'organizing_secretary', 'vice_secretary', 'liturgist', 'vice_moderator', 'patron_matron', 'member'] });
+  const [user, setUser] = useState<any>({ name: 'User', roles: ['member'] });
   const [darkMode, setDarkMode] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const pathname = usePathname();
@@ -34,16 +34,18 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const roles = user.roles || ['member'];
   const isAdmin = roles.includes('father') || roles.includes('moderator');
 
-  // Minutes access
   const minutesRoles = ['secretary', 'moderator', 'vice_moderator', 'patron_matron', 'father'];
   const canSeeMinutes = roles.some((r: string) => minutesRoles.includes(r));
 
-  // FRAGO access
   const fragoRoles = ['organizing_secretary', 'secretary', 'moderator', 'patron_matron', 'father'];
   const canSeeFrago = roles.some((r: string) => fragoRoles.includes(r));
 
+  const canSeePairs = roles.includes('moderator') || roles.includes('father') || roles.includes('vice_moderator');
+
   const allConsoles = [
     { href: '/dashboard', label: 'Dashboard', icon: '🏠', alwaysShow: true },
+    { href: '/dashboard/check-in', label: 'Check-in', icon: '✅', alwaysShow: true },
+    { href: '/dashboard/pairs', label: 'Pairs', icon: '🤝', condition: canSeePairs },
     { href: '/dashboard/father', label: 'Father', icon: '👑', role: 'father' },
     { href: '/dashboard/moderator', label: 'Moderator', icon: '🛡️', role: 'moderator' },
     { href: '/dashboard/secretary', label: 'Secretary', icon: '📋', role: 'secretary' },
@@ -53,14 +55,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     { href: '/dashboard/liturgist', label: 'Liturgist', icon: '✝️', role: 'liturgist' },
     { href: '/dashboard/vice-moderator', label: 'Vice Moderator', icon: '⚖️', role: 'vice_moderator' },
     { href: '/dashboard/patron-matron', label: 'Patron/Matron', icon: '👵', role: 'patron_matron' },
-    { href: '/dashboard/frago', label: 'FRAGO', icon: '🎯', fragoOnly: true },
-    { href: '/minutes.html', label: 'Minutes', icon: '📝', minutesOnly: true, external: true },
+    { href: '/dashboard/frago', label: 'FRAGO', icon: '🎯', condition: canSeeFrago },
+    { href: '/minutes.html', label: 'Minutes', icon: '📝', condition: canSeeMinutes, external: true },
     { href: '/dashboard/settings', label: 'Settings', icon: '⚙️', role: 'settings' },
   ];
 
   const visibleConsoles = allConsoles.filter((c: any) => {
-    if (c.minutesOnly) return canSeeMinutes;
-    if (c.fragoOnly) return canSeeFrago;
+    if (c.condition !== undefined) return c.condition;
     return c.alwaysShow || isAdmin || (c.role && roles.includes(c.role));
   });
 
@@ -71,12 +72,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh', background: darkMode ? '#0f172a' : '#f1f5f9' }}>
-      <aside className="sidebar" style={{
-        width: sidebarOpen ? '230px' : '60px', background: bgColor, color: textColor,
-        padding: '15px', transition: 'width 0.3s', position: 'sticky', top: 0,
-        height: '100vh', overflowY: 'auto', borderRight: `1px solid ${borderColor}`,
-        display: 'flex', flexDirection: 'column',
-      }}>
+      <aside className="sidebar" style={{ width: sidebarOpen ? '230px' : '60px', background: bgColor, color: textColor, padding: '15px', transition: 'width 0.3s', position: 'sticky', top: 0, height: '100vh', overflowY: 'auto', borderRight: `1px solid ${borderColor}`, display: 'flex', flexDirection: 'column' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
           {sidebarOpen && <h2 style={{ fontSize: '18px', fontWeight: 'bold' }}>Kinoo YSC</h2>}
           <button onClick={() => setSidebarOpen(!sidebarOpen)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '20px', color: textColor }}>{sidebarOpen ? '◀' : '▶'}</button>
@@ -89,10 +85,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 <span>{item.icon}</span>{sidebarOpen && <span>{item.label} ↗</span>}
               </a>
             ) : (
-              <Link key={item.href} href={item.href} className="sidebar-link" style={{
-                color: pathname === item.href ? '#fff' : textColor,
-                background: pathname === item.href ? '#3b82f6' : 'transparent',
-              }}>
+              <Link key={item.href} href={item.href} className="sidebar-link" style={{ color: pathname === item.href ? '#fff' : textColor, background: pathname === item.href ? '#3b82f6' : 'transparent' }}>
                 <span>{item.icon}</span>{sidebarOpen && <span>{item.label}</span>}
               </Link>
             )
@@ -107,7 +100,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </button>
         </div>
       </aside>
-
       <main className="main-content" style={{ flex: 1, padding: '20px', overflowX: 'hidden' }}>
         <div style={{ display: 'flex', gap: '10px', marginBottom: '20px', alignItems: 'center' }}>
           <button onClick={goBack} disabled={currentIndex <= 0} style={{ padding: '10px 20px', border: `1px solid ${borderColor}`, borderRadius: '8px', background: bgColor, color: textColor, cursor: currentIndex <= 0 ? 'not-allowed' : 'pointer', opacity: currentIndex <= 0 ? 0.4 : 1, fontSize: '16px' }}>← Back</button>
