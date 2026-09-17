@@ -14,7 +14,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   useEffect(() => {
     setDarkMode(localStorage.getItem('kinoo_theme') === 'dark');
 
-    // Always fetch fresh session from server
     fetch("/api/auth/session", { credentials: "include", cache: "no-store" })
       .then(r => r.json())
       .then(d => {
@@ -22,19 +21,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           setUser(d.user);
           localStorage.setItem('kinoo_user', JSON.stringify(d.user));
         } else {
-          // No session - use cached or fallback
           const cached = localStorage.getItem('kinoo_user');
-          if (cached) {
-            try { setUser(JSON.parse(cached)); } catch (e) {}
-          }
+          if (cached) { try { setUser(JSON.parse(cached)); } catch (e) {} }
         }
         setReady(true);
       })
       .catch(() => {
         const cached = localStorage.getItem('kinoo_user');
-        if (cached) {
-          try { setUser(JSON.parse(cached)); } catch (e) {}
-        }
+        if (cached) { try { setUser(JSON.parse(cached)); } catch (e) {} }
         setReady(true);
       });
   }, []);
@@ -51,15 +45,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   const roles: string[] = user?.roles || ['member'];
   const roleStr = roles.join(',').toLowerCase();
-
-  // ADMIN = sees every tab (any of these roles)
   const adminKeywords = ['father', 'moderator', 'secretary', 'treasurer', 'organizing', 'vice', 'liturgist', 'patron'];
   const isAdmin = adminKeywords.some(k => roleStr.includes(k));
 
-  // Build the console list
   const allConsoles = [
     { href: '/dashboard', label: 'Dashboard', icon: '🏠', show: true },
     { href: '/dashboard/check-in', label: 'Check-in', icon: '✅', show: true },
+    { href: '/dashboard/events', label: 'Events', icon: '📅', show: true },
     { href: '/dashboard/pairs', label: 'Pairs', icon: '🤝', show: isAdmin },
     { href: '/dashboard/father', label: 'Father', icon: '👑', show: isAdmin },
     { href: '/dashboard/moderator', label: 'Moderator', icon: '🛡️', show: isAdmin },
@@ -81,9 +73,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const goBack = () => { if (currentIndex > 0) router.push(internalConsoles[currentIndex - 1].href); };
   const goForward = () => { if (currentIndex >= 0 && currentIndex < internalConsoles.length - 1) router.push(internalConsoles[currentIndex + 1].href); };
 
-  if (!ready) {
-    return <div style={{ padding: '40px', textAlign: 'center', fontSize: '16px' }}>Loading...</div>;
-  }
+  if (!ready) return <div style={{ padding: '40px', textAlign: 'center', fontSize: '16px' }}>Loading...</div>;
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh', background: darkMode ? '#0f172a' : '#f1f5f9' }}>
@@ -94,7 +84,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </div>
         {sidebarOpen && user && <p style={{ opacity: '0.7', fontSize: '13px', marginBottom: '5px' }}>{user.name || 'User'}</p>}
         {sidebarOpen && <p style={{ opacity: '0.5', fontSize: '11px', marginBottom: '20px' }}>{roles.join(', ')}</p>}
-        {sidebarOpen && !user && <p style={{ opacity: '0.5', fontSize: '11px', marginBottom: '20px' }}>Not logged in</p>}
         <nav style={{ display: 'flex', flexDirection: 'column', gap: '3px', flex: 1 }}>
           {visibleConsoles.map((item: any) => (
             item.external ? (
