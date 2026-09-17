@@ -7,11 +7,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [user, setUser] = useState<any>({ name: 'User', roles: ['member'] });
   const [darkMode, setDarkMode] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [loading, setLoading] = useState(true);
   const pathname = usePathname();
   const router = useRouter();
 
   useEffect(() => {
     setDarkMode(localStorage.getItem('kinoo_theme') === 'dark');
+
+    // Try localStorage first (instant render)
     const savedUser = localStorage.getItem('kinoo_user');
     if (savedUser) {
       try {
@@ -19,6 +22,18 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         if (parsed?.roles) setUser(parsed);
       } catch (e) {}
     }
+
+    // Then fetch FRESH session from API (authoritative)
+    fetch("/api/auth/session", { credentials: "include", cache: "no-store" })
+      .then(r => r.json())
+      .then(d => {
+        if (d?.user?.roles) {
+          setUser(d.user);
+          localStorage.setItem('kinoo_user', JSON.stringify(d.user));
+        }
+        setLoading(false);
+      })
+      .catch(() => setLoading(false));
   }, []);
 
   useEffect(() => {
@@ -31,40 +46,35 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const bgColor = darkMode ? '#1e293b' : '#ffffff';
   const borderColor = darkMode ? '#334155' : '#e2e8f0';
 
-  const roles = user.roles || ['member'];
-  const isAdmin = roles.includes('father') || roles.includes('moderator');
+  const roles: string[] = user.roles || ['member'];
 
-  const minutesRoles = ['secretary', 'moderator', 'vice_moderator', 'patron_matron', 'father'];
-  const canSeeMinutes = roles.some((r: string) => minutesRoles.includes(r));
+  // ADMIN CHECK — any of these roles = sees all tabs
+  const adminRoles = ['father', 'moderator', 'secretary', 'treasurer', 'organizing_secretary', 'vice_secretary', 'liturgist', 'vice_moderator', 'patron_matron'];
+  const isAdmin = roles.some(r => adminRoles.includes(r));
 
-  const fragoRoles = ['organizing_secretary', 'secretary', 'moderator', 'patron_matron', 'father'];
-  const canSeeFrago = roles.some((r: string) => fragoRoles.includes(r));
-
-  const canSeePairs = roles.includes('moderator') || roles.includes('father') || roles.includes('vice_moderator');
+  const canSeeMinutes = isAdmin || roles.includes('secretary') || roles.includes('moderator');
+  const canSeeFrago = isAdmin || roles.includes('organizing_secretary');
+  const canSeePairs = isAdmin;
 
   const allConsoles = [
-    { href: '/dashboard', label: 'Dashboard', icon: '🏠', alwaysShow: true },
-    { href: '/dashboard/check-in', label: 'Check-in', icon: '✅', alwaysShow: true },
-    { href: '/dashboard/pairs', label: 'Pairs', icon: '🤝', condition: canSeePairs },
-    { href: '/dashboard/father', label: 'Father', icon: '👑', role: 'father' },
-    { href: '/dashboard/moderator', label: 'Moderator', icon: '🛡️', role: 'moderator' },
-    { href: '/dashboard/secretary', label: 'Secretary', icon: '📋', role: 'secretary' },
-    { href: '/dashboard/treasurer', label: 'Treasurer', icon: '💰', role: 'treasurer' },
-    { href: '/dashboard/organizing-secretary', label: 'Organising Sec', icon: '🚌', role: 'organizing_secretary' },
-    { href: '/dashboard/vice-secretary', label: 'Vice Secretary', icon: '🧠', role: 'vice_secretary' },
-    { href: '/dashboard/liturgist', label: 'Liturgist', icon: '✝️', role: 'liturgist' },
-    { href: '/dashboard/vice-moderator', label: 'Vice Moderator', icon: '⚖️', role: 'vice_moderator' },
-    { href: '/dashboard/patron-matron', label: 'Patron/Matron', icon: '👵', role: 'patron_matron' },
-    { href: '/dashboard/frago', label: 'FRAGO', icon: '🎯', condition: canSeeFrago },
-    { href: '/minutes.html', label: 'Minutes', icon: '📝', condition: canSeeMinutes, external: true },
-    { href: '/dashboard/settings', label: 'Settings', icon: '⚙️', role: 'settings' },
+    { href: '/dashboard', label: 'Dashboard', icon: '🏠', show: true },
+    { href: '/dashboard/check-in', label: 'Check-in', icon: '✅', show: true },
+    { href: '/dashboard/pairs', label: 'Pairs', icon: '🤝', show: canSeePairs },
+    { href: '/dashboard/father', label: 'Father', icon: '👑', show: isAdmin },
+    { href: '/dashboard/moderator', label: 'Moderator', icon: '🛡️', show: isAdmin },
+    { href: '/dashboard/secretary', label: 'Secretary', icon: '📋', show: isAdmin },
+    { href: '/dashboard/treasurer', label: 'Treasurer', icon: '💰', show: isAdmin },
+    { href: '/dashboard/organizing-secretary', label: 'Organising Sec', icon: '🚌', show: isAdmin },
+    { href: '/dashboard/vice-secretary', label: 'Vice Secretary', icon: '🧠', show: isAdmin },
+    { href: '/dashboard/liturgist', label: 'Liturgist', icon: '✝️', show: isAdmin },
+    { href: '/dashboard/vice-moderator', label: 'Vice Moderator', icon: '⚖️', show: isAdmin },
+    { href: '/dashboard/patron-matron', label: 'Patron/Matron', icon: '👵', show: isAdmin },
+    { href: '/dashboard/frago', label: 'FRAGO', icon: '🎯', show: canSeeFrago },
+    { href: '/minutes.html', label: 'Minutes', icon: '📝', show: canSeeMinutes, external: true },
+    { href: '/dashboard/settings', label: 'Settings', icon: '⚙️', show: isAdmin || roles.includes('father') || roles.includes('moderator') },
   ];
 
-  const visibleConsoles = allConsoles.filter((c: any) => {
-    if (c.condition !== undefined) return c.condition;
-    return c.alwaysShow || isAdmin || (c.role && roles.includes(c.role));
-  });
-
+  const visibleConsoles = allConsoles.filter((c: any) => c.show);
   const internalConsoles = visibleConsoles.filter((c: any) => !c.external);
   const currentIndex = internalConsoles.findIndex((c: any) => pathname === c.href);
   const goBack = () => { if (currentIndex > 0) router.push(internalConsoles[currentIndex - 1].href); };
@@ -77,7 +87,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           {sidebarOpen && <h2 style={{ fontSize: '18px', fontWeight: 'bold' }}>Kinoo YSC</h2>}
           <button onClick={() => setSidebarOpen(!sidebarOpen)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '20px', color: textColor }}>{sidebarOpen ? '◀' : '▶'}</button>
         </div>
-        {sidebarOpen && <p style={{ opacity: '0.7', fontSize: '13px', marginBottom: '20px' }}>{user.name || 'User'}</p>}
+        {sidebarOpen && <p style={{ opacity: '0.7', fontSize: '13px', marginBottom: '5px' }}>{user.name || 'User'}</p>}
+        {sidebarOpen && <p style={{ opacity: '0.5', fontSize: '11px', marginBottom: '20px' }}>{roles.join(', ')}</p>}
         <nav style={{ display: 'flex', flexDirection: 'column', gap: '3px', flex: 1 }}>
           {visibleConsoles.map((item: any) => (
             item.external ? (
