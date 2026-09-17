@@ -1,74 +1,75 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
-import { initiateSTKPush } from "@/lib/mpesa";
-import { connectDB } from "@/lib/db";
-import Transaction from "@/models/Transaction";
+import mongoose from "mongoose";
 
-export async function POST(req: NextRequest) {
+async function getDB() {
+  const MONGODB_URI = process.env.MONGODB_URI || "";
+  if (!MONGODB_URI) throw new Error("MONGODB_URI missing");
+  if (mongoose.connection.readyState === 0) {
+    await mongoose.connect(MONGODB_URI, { bufferCommands: false });
+  }
+  return mongoose.connection.db;
+}
+
+export async function GET(req: NextRequest) {
   try {
-    const session = await auth();
-    if (!session) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const db = await getDB();
+    if (!db) throw new Error("DB failed");
 
-    const { amount, purpose } = await req.json();
+    const userId = req.nextUrl.searchParams.get("userId");
+    const query = userId ? { fromUser: new mongoose.Types.ObjectId(userId) } : {};
 
-    // Validate
-    if (!amount || amount <= 0) {
-      return NextResponse.json({ error: "Invalid amount" }, { status: 400 });
-    }
+    const txs = await db.collection('transactions')
+      .find(query)
+      .sort({ date: -1 })
+      .limit(50)
+      .toArray();
 
-    if (!purpose) {
-      return NextResponse.json({ error: "Purpose is required" }, { status: 400 });
-    }
+    const result = txs.map((t: any) => ({
+      _id: t._id.toString(),
+      amount: t.amount,
+      purpose: t.purpose,
+      type: t.type || 'income',
+      verified: t.verified !== false,
+      mpesaReceipt: t.mpesaReceipt || null,
+      date: t.date,
+      fromUser: t.fromUser ? t.fromUser.toString() : null
+    }));
 
-    const phone = session.user.phone;
-
-    // Initiate STK Push
-    const response = await initiateSTKPush(phone, amount, purpose, "Kinoo YSC Contribution");
-
-    // Save transaction
-    await connectDB();
-    const transaction = await Transaction.create({
-      fromUser: session.user.id,
-      amount,
-      purpose,
-      checkoutRequestID: response.checkoutRequestID,
-      verified: false
+    return NextResponse.json(result, {
+      headers: { 'Cache-Control': 'no-store' }
     });
-
-    return NextResponse.json({
-      success: true,
-      message: "M-Pesa prompt sent to your phone",
-      checkoutRequestID: response.checkoutRequestID,
-      transactionId: transaction._id
-    });
-
   } catch (error: any) {
-    console.error("Contribution error:", error);
-    return NextResponse.json({ 
-      error: error.message || "M-Pesa request failed" 
-    }, { status: 500 });
+    return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
 
-// Get user's transactions
-export async function GET() {
+export async function POST(req: NextRequest) {
   try {
-    const session = await auth();
-    if (!session) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const { amount, purpose, memberId } = await req.json();
+
+    if (!amount || Number(amount) <= 0) {
+      return NextResponse.json({ error: "Invalid amount" }, { status: 400 });
     }
 
-    await connectDB();
-    const transactions = await Transaction.find({ fromUser: session.user.id })
-      .sort({ date: -1 })
-      .limit(50);
+    const db = await getDB();
+    if (!db) throw new Error("DB failed");
 
-    return NextResponse.json(transactions);
+    const result = await db.collection('transactions').insertOne({
+      amount: Number(amount),
+      purpose: purpose || 'Contribution',
+      type: 'income',
+      fromUser: memberId ? new mongoose.Types.ObjectId(memberId) : null,
+      verified: false,
+      mpesaReceipt: null,
+      date: new Date(),
+      __v: 0
+    });
 
+    return NextResponse.json({
+      message: "Contribution logged",
+      id: result.insertedId.toString()
+    });
   } catch (error: any) {
-    console.error("Transaction fetch error:", error);
-    return NextResponse.json({ error: "Failed to fetch transactions" }, { status: 500 });
+    return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

@@ -52,9 +52,6 @@ export async function POST(req: NextRequest) {
     if (totalUsers === 0) {
       roles = ['father', 'moderator', 'member'];
       status = 'active';
-    } else {
-      roles = ['member'];
-      status = 'active';
     }
 
     const result = await db.collection('users').insertOne({
@@ -69,11 +66,36 @@ export async function POST(req: NextRequest) {
       registrationFee: 100,
       photo: null,
       pairId: null,
+      pairName: null,
+      pairPartnerId: null,
+      lastCheckIn: null,
+      checkInHistory: [],
+      weeksMissed: 0,
+      complianceScore: 100,
+      documents: {
+        nationalId: null,
+        baptismCard: null,
+        approvalStatus: 'none'
+      },
       twoFactorEnabled: false,
       whatsappRegistered: false,
       createdAt: new Date(),
       __v: 0
     });
+
+    // Log this registration in audit log
+    try {
+      await fetch(`${process.env.NEXTAUTH_URL || "https://kinoo-ysc.vercel.app"}/api/audit-log`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'register_member',
+          performedBy: result.insertedId.toString(),
+          performedByName: fullName,
+          details: `Registered as ${roles.join(', ')} in ${outstation}`
+        })
+      });
+    } catch (e) {}
 
     return NextResponse.json({
       message: roles.includes('father')
