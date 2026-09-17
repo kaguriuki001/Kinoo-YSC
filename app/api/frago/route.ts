@@ -10,16 +10,45 @@ async function getDB() {
   return mongoose.connection.db;
 }
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(req: NextRequest) {
   try {
     const eventId = req.nextUrl.searchParams.get("eventId");
     const db = await getDB();
     if (!db) throw new Error("DB failed");
     let query: any = {};
-    if (eventId) query.eventId = new mongoose.Types.ObjectId(eventId);
+    if (eventId) query.eventId = eventId;
     const fragos = await db.collection('fragos').find(query).sort({ createdAt: -1 }).toArray();
-    const result = fragos.map((f: any) => ({ ...f, _id: f._id.toString() }));
-    return NextResponse.json(result);
+
+    // Attach curated feedback to each frago
+    const result = await Promise.all(fragos.map(async (f: any) => {
+      let feedback: any[] = [];
+      if (f.eventId) {
+        // Only feedback approved for FRAGO (includeInFrago !== false)
+        feedback = await db.collection('event_feedback')
+          .find({ eventId: f.eventId.toString(), includeInFrago: { $ne: false } })
+          .sort({ submittedAt: -1 })
+          .toArray();
+      }
+
+      return {
+        ...f,
+        _id: f._id.toString(),
+        memberFeedback: feedback.map((fb: any) => ({
+          _id: fb._id.toString(),
+          userName: fb.anonymous ? 'Anonymous' : (fb.userName || 'Member'),
+          wentWell: fb.wentWell || '',
+          wentWrong: fb.wentWrong || '',
+          rating: fb.rating || 0,
+          anonymous: fb.anonymous || false,
+          includeInFrago: fb.includeInFrago !== false,
+          submittedAt: fb.submittedAt
+        }))
+      };
+    }));
+
+    return NextResponse.json(result, { headers: { 'Cache-Control': 'no-store' } });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
@@ -58,9 +87,7 @@ export async function POST(req: NextRequest) {
         timestamp: new Date(),
         read: false
       }));
-      if (notificationDocs.length > 0) {
-        await db.collection('notifications').insertMany(notificationDocs);
-      }
+      if (notificationDocs.length > 0) await db.collection('notifications').insertMany(notificationDocs);
 
       return NextResponse.json({ message: "FRAGO updated", id });
     }
@@ -83,9 +110,7 @@ export async function POST(req: NextRequest) {
       timestamp: new Date(),
       read: false
     }));
-    if (notificationDocs.length > 0) {
-      await db.collection('notifications').insertMany(notificationDocs);
-    }
+    if (notificationDocs.length > 0) await db.collection('notifications').insertMany(notificationDocs);
 
     return NextResponse.json({ message: "FRAGO created", id: result.insertedId });
   } catch (error: any) {
