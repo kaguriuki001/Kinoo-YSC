@@ -4,36 +4,39 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<any>({ name: 'User', roles: ['member'] });
+  const [user, setUser] = useState<any>(null);
   const [darkMode, setDarkMode] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [loading, setLoading] = useState(true);
+  const [ready, setReady] = useState(false);
   const pathname = usePathname();
   const router = useRouter();
 
   useEffect(() => {
     setDarkMode(localStorage.getItem('kinoo_theme') === 'dark');
 
-    // Try localStorage first (instant render)
-    const savedUser = localStorage.getItem('kinoo_user');
-    if (savedUser) {
-      try {
-        const parsed = JSON.parse(savedUser);
-        if (parsed?.roles) setUser(parsed);
-      } catch (e) {}
-    }
-
-    // Then fetch FRESH session from API (authoritative)
+    // Always fetch fresh session from server
     fetch("/api/auth/session", { credentials: "include", cache: "no-store" })
       .then(r => r.json())
       .then(d => {
-        if (d?.user?.roles) {
+        if (d?.user) {
           setUser(d.user);
           localStorage.setItem('kinoo_user', JSON.stringify(d.user));
+        } else {
+          // No session - use cached or fallback
+          const cached = localStorage.getItem('kinoo_user');
+          if (cached) {
+            try { setUser(JSON.parse(cached)); } catch (e) {}
+          }
         }
-        setLoading(false);
+        setReady(true);
       })
-      .catch(() => setLoading(false));
+      .catch(() => {
+        const cached = localStorage.getItem('kinoo_user');
+        if (cached) {
+          try { setUser(JSON.parse(cached)); } catch (e) {}
+        }
+        setReady(true);
+      });
   }, []);
 
   useEffect(() => {
@@ -46,20 +49,18 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const bgColor = darkMode ? '#1e293b' : '#ffffff';
   const borderColor = darkMode ? '#334155' : '#e2e8f0';
 
-  const roles: string[] = user.roles || ['member'];
+  const roles: string[] = user?.roles || ['member'];
+  const roleStr = roles.join(',').toLowerCase();
 
-  // ADMIN CHECK — any of these roles = sees all tabs
-  const adminRoles = ['father', 'moderator', 'secretary', 'treasurer', 'organizing_secretary', 'vice_secretary', 'liturgist', 'vice_moderator', 'patron_matron'];
-  const isAdmin = roles.some(r => adminRoles.includes(r));
+  // ADMIN = sees every tab (any of these roles)
+  const adminKeywords = ['father', 'moderator', 'secretary', 'treasurer', 'organizing', 'vice', 'liturgist', 'patron'];
+  const isAdmin = adminKeywords.some(k => roleStr.includes(k));
 
-  const canSeeMinutes = isAdmin || roles.includes('secretary') || roles.includes('moderator');
-  const canSeeFrago = isAdmin || roles.includes('organizing_secretary');
-  const canSeePairs = isAdmin;
-
+  // Build the console list
   const allConsoles = [
     { href: '/dashboard', label: 'Dashboard', icon: '🏠', show: true },
     { href: '/dashboard/check-in', label: 'Check-in', icon: '✅', show: true },
-    { href: '/dashboard/pairs', label: 'Pairs', icon: '🤝', show: canSeePairs },
+    { href: '/dashboard/pairs', label: 'Pairs', icon: '🤝', show: isAdmin },
     { href: '/dashboard/father', label: 'Father', icon: '👑', show: isAdmin },
     { href: '/dashboard/moderator', label: 'Moderator', icon: '🛡️', show: isAdmin },
     { href: '/dashboard/secretary', label: 'Secretary', icon: '📋', show: isAdmin },
@@ -69,9 +70,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     { href: '/dashboard/liturgist', label: 'Liturgist', icon: '✝️', show: isAdmin },
     { href: '/dashboard/vice-moderator', label: 'Vice Moderator', icon: '⚖️', show: isAdmin },
     { href: '/dashboard/patron-matron', label: 'Patron/Matron', icon: '👵', show: isAdmin },
-    { href: '/dashboard/frago', label: 'FRAGO', icon: '🎯', show: canSeeFrago },
-    { href: '/minutes.html', label: 'Minutes', icon: '📝', show: canSeeMinutes, external: true },
-    { href: '/dashboard/settings', label: 'Settings', icon: '⚙️', show: isAdmin || roles.includes('father') || roles.includes('moderator') },
+    { href: '/dashboard/frago', label: 'FRAGO', icon: '🎯', show: isAdmin },
+    { href: '/minutes.html', label: 'Minutes', icon: '📝', show: isAdmin, external: true },
+    { href: '/dashboard/settings', label: 'Settings', icon: '⚙️', show: isAdmin },
   ];
 
   const visibleConsoles = allConsoles.filter((c: any) => c.show);
@@ -80,6 +81,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const goBack = () => { if (currentIndex > 0) router.push(internalConsoles[currentIndex - 1].href); };
   const goForward = () => { if (currentIndex >= 0 && currentIndex < internalConsoles.length - 1) router.push(internalConsoles[currentIndex + 1].href); };
 
+  if (!ready) {
+    return <div style={{ padding: '40px', textAlign: 'center', fontSize: '16px' }}>Loading...</div>;
+  }
+
   return (
     <div style={{ display: 'flex', minHeight: '100vh', background: darkMode ? '#0f172a' : '#f1f5f9' }}>
       <aside className="sidebar" style={{ width: sidebarOpen ? '230px' : '60px', background: bgColor, color: textColor, padding: '15px', transition: 'width 0.3s', position: 'sticky', top: 0, height: '100vh', overflowY: 'auto', borderRight: `1px solid ${borderColor}`, display: 'flex', flexDirection: 'column' }}>
@@ -87,8 +92,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           {sidebarOpen && <h2 style={{ fontSize: '18px', fontWeight: 'bold' }}>Kinoo YSC</h2>}
           <button onClick={() => setSidebarOpen(!sidebarOpen)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '20px', color: textColor }}>{sidebarOpen ? '◀' : '▶'}</button>
         </div>
-        {sidebarOpen && <p style={{ opacity: '0.7', fontSize: '13px', marginBottom: '5px' }}>{user.name || 'User'}</p>}
+        {sidebarOpen && user && <p style={{ opacity: '0.7', fontSize: '13px', marginBottom: '5px' }}>{user.name || 'User'}</p>}
         {sidebarOpen && <p style={{ opacity: '0.5', fontSize: '11px', marginBottom: '20px' }}>{roles.join(', ')}</p>}
+        {sidebarOpen && !user && <p style={{ opacity: '0.5', fontSize: '11px', marginBottom: '20px' }}>Not logged in</p>}
         <nav style={{ display: 'flex', flexDirection: 'column', gap: '3px', flex: 1 }}>
           {visibleConsoles.map((item: any) => (
             item.external ? (
