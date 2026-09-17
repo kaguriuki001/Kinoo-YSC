@@ -8,7 +8,6 @@ export default function Login() {
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
-
   const [showForgot, setShowForgot] = useState(false);
   const [forgotStep, setForgotStep] = useState(1);
   const [forgotPhone, setForgotPhone] = useState("");
@@ -23,24 +22,30 @@ export default function Login() {
     if (!identifier || !password) { toast.error("Fill all fields"); return; }
     setLoading(true);
 
-    const result = await signIn("credentials", {
-      identifier: identifier.trim(),
-      password,
-      redirect: false
-    });
+    try {
+      const res = await signIn("credentials", {
+        identifier: identifier.trim(),
+        phone: identifier.trim(),
+        password,
+        redirect: false
+      });
 
-    if (result?.ok) {
-      toast.success("Welcome to Kinoo YSC!");
-      try {
-        const sessionRes = await fetch("/api/auth/session", { credentials: "include" });
-        const sessionData = await sessionRes.json();
-        if (sessionData?.user) {
-          localStorage.setItem('kinoo_user', JSON.stringify(sessionData.user));
-        }
-      } catch (e) {}
-      window.location.href = "/dashboard";
-    } else {
-      toast.error("Invalid credentials. Check phone/name and password.");
+      if (res?.ok) {
+        toast.success("Welcome to Kinoo YSC!");
+        try {
+          const sessionRes = await fetch("/api/auth/session", { credentials: "include" });
+          const sessionData = await sessionRes.json();
+          if (sessionData?.user) {
+            localStorage.setItem('kinoo_user', JSON.stringify(sessionData.user));
+          }
+        } catch (e) {}
+        window.location.href = "/dashboard";
+      } else {
+        toast.error("Invalid credentials. Check phone/name and password.");
+        setLoading(false);
+      }
+    } catch (err) {
+      toast.error("Login failed. Try again.");
       setLoading(false);
     }
   };
@@ -56,24 +61,15 @@ export default function Login() {
       });
       const data = await res.json();
       setResetLoading(false);
-      if (res.ok) {
-        setDevOTP(data.otp);
-        toast.success("OTP generated!");
-        setForgotStep(2);
-      } else {
-        toast.error(data.error || "Failed to send OTP");
-      }
-    } catch (err) {
-      setResetLoading(false);
-      toast.error("Network error. Try again.");
-    }
+      if (res.ok) { setDevOTP(data.otp); toast.success("OTP generated!"); setForgotStep(2); }
+      else toast.error(data.error || "Failed to send OTP");
+    } catch (err) { setResetLoading(false); toast.error("Network error."); }
   };
 
   const resetPassword = async () => {
     if (!otp || !newPassword) { toast.error("Enter OTP and new password"); return; }
-    if (newPassword.length < 6) { toast.error("Password must be at least 6 characters"); return; }
+    if (newPassword.length < 6) { toast.error("Password must be 6+ characters"); return; }
     if (newPassword !== confirmPassword) { toast.error("Passwords do not match"); return; }
-
     setResetLoading(true);
     try {
       const res = await fetch("/api/forgot-password", {
@@ -84,33 +80,10 @@ export default function Login() {
       const data = await res.json();
       setResetLoading(false);
       if (res.ok) {
-        toast.success("Password reset! Login with your new password.");
-        setTimeout(() => {
-          setShowForgot(false);
-          setForgotStep(1);
-          setForgotPhone("");
-          setOtp("");
-          setNewPassword("");
-          setConfirmPassword("");
-          setDevOTP("");
-        }, 1500);
-      } else {
-        toast.error(data.error || "Reset failed");
-      }
-    } catch (err) {
-      setResetLoading(false);
-      toast.error("Network error. Try again.");
-    }
-  };
-
-  const closeForgot = () => {
-    setShowForgot(false);
-    setForgotStep(1);
-    setForgotPhone("");
-    setOtp("");
-    setNewPassword("");
-    setConfirmPassword("");
-    setDevOTP("");
+        toast.success("Password reset! Login now.");
+        setTimeout(() => { setShowForgot(false); setForgotStep(1); setForgotPhone(""); setOtp(""); setNewPassword(""); setConfirmPassword(""); setDevOTP(""); }, 1500);
+      } else toast.error(data.error || "Reset failed");
+    } catch (err) { setResetLoading(false); toast.error("Network error."); }
   };
 
   const inputStyle = { width: '100%', padding: '14px', borderRadius: '10px', border: '1px solid #ddd', fontSize: '16px', outline: 'none', boxSizing: 'border-box' as const };
@@ -133,7 +106,6 @@ export default function Login() {
               <div>
                 <label style={{ display: 'block', marginBottom: '5px', fontSize: '14px', fontWeight: '500', color: '#333' }}>Phone or Full Name</label>
                 <input type="text" placeholder="e.g., 0712345678 or John Kamau" value={identifier} onChange={(e) => setIdentifier(e.target.value)} style={inputStyle} required />
-                <p style={{ fontSize: '11px', color: '#999', marginTop: '4px' }}>Use either your phone number or full name</p>
               </div>
               <div>
                 <label style={{ display: 'block', marginBottom: '5px', fontSize: '14px', fontWeight: '500', color: '#333' }}>Password</label>
@@ -146,13 +118,11 @@ export default function Login() {
                 {loading ? "Signing in..." : "Sign In"}
               </button>
             </form>
-
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', margin: '20px 0' }}>
               <div style={{ flex: 1, height: '1px', background: '#e5e7eb' }} />
               <span style={{ color: '#999', fontSize: '13px' }}>or</span>
               <div style={{ flex: 1, height: '1px', background: '#e5e7eb' }} />
             </div>
-
             <Link href="/register" style={{ display: 'block', width: '100%', padding: '14px', background: 'white', color: '#0f3460', border: '2px solid #0f3460', borderRadius: '10px', fontSize: '16px', fontWeight: '600', textAlign: 'center', textDecoration: 'none', boxSizing: 'border-box' as const }}>
               Register Now
             </Link>
@@ -161,39 +131,34 @@ export default function Login() {
           <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
               <h2 style={{ fontSize: '20px', color: '#1a1a2e' }}>Reset Password</h2>
-              <button onClick={closeForgot} style={{ background: 'none', border: 'none', fontSize: '20px', cursor: 'pointer', color: '#666' }}>✕</button>
+              <button onClick={() => setShowForgot(false)} style={{ background: 'none', border: 'none', fontSize: '20px', cursor: 'pointer', color: '#666' }}>✕</button>
             </div>
-
             {forgotStep === 1 && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-                <p style={{ fontSize: '13px', color: '#666', lineHeight: '1.5' }}>Enter your registered phone number. We'll send you a 6-digit OTP.</p>
-                <input type="tel" placeholder="e.g., 0712345678" value={forgotPhone} onChange={(e) => setForgotPhone(e.target.value)} style={inputStyle} />
-                <button onClick={requestOTP} disabled={resetLoading} style={{ ...btnStyle, background: 'linear-gradient(135deg, #16a34a, #15803d)', opacity: resetLoading ? 0.6 : 1 }}>
+                <input type="tel" placeholder="Your phone number" value={forgotPhone} onChange={(e) => setForgotPhone(e.target.value)} style={inputStyle} />
+                <button onClick={requestOTP} disabled={resetLoading} style={{ ...btnStyle, background: 'linear-gradient(135deg, #16a34a, #15803d)' }}>
                   {resetLoading ? "Sending..." : "Send OTP"}
                 </button>
               </div>
             )}
-
             {forgotStep === 2 && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
                 {devOTP && (
                   <div style={{ padding: '12px', background: '#fef3c7', borderRadius: '8px', border: '1px solid #f59e0b' }}>
-                    <p style={{ fontSize: '12px', color: '#92400e', marginBottom: '5px' }}>🔧 Dev Mode OTP:</p>
+                    <p style={{ fontSize: '12px', color: '#92400e' }}>Dev Mode OTP:</p>
                     <p style={{ fontSize: '24px', fontWeight: 'bold', color: '#92400e', letterSpacing: '4px', textAlign: 'center' }}>{devOTP}</p>
                   </div>
                 )}
-                <input type="text" placeholder="Enter 6-digit OTP" value={otp} onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))} maxLength={6} style={{ ...inputStyle, textAlign: 'center' as const, letterSpacing: '8px', fontSize: '20px', fontWeight: 'bold' }} />
-                <input type="password" placeholder="New password (min 6 characters)" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} style={inputStyle} />
-                <input type="password" placeholder="Confirm new password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} style={inputStyle} />
-                <button onClick={resetPassword} disabled={resetLoading} style={{ ...btnStyle, background: 'linear-gradient(135deg, #16a34a, #15803d)', opacity: resetLoading ? 0.6 : 1 }}>
+                <input type="text" placeholder="Enter OTP" value={otp} onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))} maxLength={6} style={{ ...inputStyle, textAlign: 'center', letterSpacing: '8px', fontSize: '20px', fontWeight: 'bold' }} />
+                <input type="password" placeholder="New password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} style={inputStyle} />
+                <input type="password" placeholder="Confirm password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} style={inputStyle} />
+                <button onClick={resetPassword} disabled={resetLoading} style={{ ...btnStyle, background: 'linear-gradient(135deg, #16a34a, #15803d)' }}>
                   {resetLoading ? "Resetting..." : "Reset Password"}
                 </button>
-                <button onClick={() => setForgotStep(1)} style={{ background: 'none', border: 'none', color: '#0f3460', cursor: 'pointer', fontSize: '13px', textDecoration: 'underline', padding: 0 }}>← Request new OTP</button>
               </div>
             )}
           </div>
         )}
-
         <p style={{ textAlign: 'center', marginTop: '20px', fontSize: '12px', color: '#999' }}>© 2026 Kinoo YSC</p>
       </div>
     </div>

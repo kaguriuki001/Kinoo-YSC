@@ -20,7 +20,7 @@ export const authOptions: any = {
           const identifier = credentials.identifier || credentials.phone || "";
           if (!identifier) return null;
 
-          let searchValue = identifier.trim();
+          const searchValue = identifier.trim();
           const isNumeric = /^[\d\s\+\-]+$/.test(searchValue);
 
           let user;
@@ -59,7 +59,39 @@ export const authOptions: any = {
   ],
   secret: process.env.NEXTAUTH_SECRET || "kinoo-ysc-secret-key-2026",
   trustHost: true,
-  session: { strategy: "jwt" },
+  session: {
+    strategy: "jwt",
+    maxAge: 30 * 24 * 60 * 60
+  },
+  useSecureCookies: true,
+  cookies: {
+    sessionToken: {
+      name: "__Secure-next-auth.session-token",
+      options: {
+        httpOnly: true,
+        sameSite: "lax",
+        path: "/",
+        secure: true
+      }
+    },
+    callbackUrl: {
+      name: "__Secure-next-auth.callback-url",
+      options: {
+        sameSite: "lax",
+        path: "/",
+        secure: true
+      }
+    },
+    csrfToken: {
+      name: "__Host-next-auth.csrf-token",
+      options: {
+        httpOnly: true,
+        sameSite: "lax",
+        path: "/",
+        secure: true
+      }
+    }
+  },
   pages: { signIn: "/" }
 };
 
