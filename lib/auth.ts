@@ -48,7 +48,8 @@ export const authOptions: any = {
             id: String(user._id),
             name: user.fullName,
             phone: user.phone,
-            roles: user.roles
+            roles: user.roles,
+            outstation: user.outstation || null
           };
         } catch (err) {
           console.error("Auth error:", err);
@@ -57,6 +58,28 @@ export const authOptions: any = {
       }
     })
   ],
+  callbacks: {
+    async jwt({ token, user }: any) {
+      if (user) {
+        token.id = user.id;
+        token.roles = user.roles || ['member'];
+        token.phone = user.phone;
+        token.name = user.name;
+        token.outstation = user.outstation || null;
+      }
+      return token;
+    },
+    async session({ session, token }: any) {
+      if (session.user) {
+        session.user.id = token.id as string;
+        session.user.roles = token.roles as string[];
+        session.user.phone = token.phone as string;
+        session.user.name = token.name as string;
+        (session.user as any).outstation = token.outstation;
+      }
+      return session;
+    }
+  },
   secret: process.env.NEXTAUTH_SECRET || "kinoo-ysc-secret-key-2026",
   trustHost: true,
   session: {
@@ -67,29 +90,15 @@ export const authOptions: any = {
   cookies: {
     sessionToken: {
       name: "__Secure-next-auth.session-token",
-      options: {
-        httpOnly: true,
-        sameSite: "lax",
-        path: "/",
-        secure: true
-      }
+      options: { httpOnly: true, sameSite: "lax", path: "/", secure: true }
     },
     callbackUrl: {
       name: "__Secure-next-auth.callback-url",
-      options: {
-        sameSite: "lax",
-        path: "/",
-        secure: true
-      }
+      options: { sameSite: "lax", path: "/", secure: true }
     },
     csrfToken: {
       name: "__Host-next-auth.csrf-token",
-      options: {
-        httpOnly: true,
-        sameSite: "lax",
-        path: "/",
-        secure: true
-      }
+      options: { httpOnly: true, sameSite: "lax", path: "/", secure: true }
     }
   },
   pages: { signIn: "/" }
