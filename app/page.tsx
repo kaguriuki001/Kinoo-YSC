@@ -4,6 +4,29 @@ import { signIn } from "next-auth/react";
 import Link from "next/link";
 import { toast } from "sonner";
 
+function PasswordInput({ value, onChange, placeholder, style }: any) {
+  const [show, setShow] = useState(false);
+  return (
+    <div style={{ position: 'relative' }}>
+      <input
+        type={show ? "text" : "password"}
+        placeholder={placeholder}
+        value={value}
+        onChange={onChange}
+        style={{ ...style, paddingRight: '48px' }}
+      />
+      <button
+        type="button"
+        onClick={() => setShow(!show)}
+        style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', fontSize: '20px', color: '#666', padding: '4px' }}
+        aria-label={show ? "Hide password" : "Show password"}
+      >
+        {show ? '🙈' : '👁️'}
+      </button>
+    </div>
+  );
+}
+
 export default function Login() {
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
@@ -35,9 +58,7 @@ export default function Login() {
         try {
           const sessionRes = await fetch("/api/auth/session", { credentials: "include" });
           const sessionData = await sessionRes.json();
-          if (sessionData?.user) {
-            localStorage.setItem('kinoo_user', JSON.stringify(sessionData.user));
-          }
+          if (sessionData?.user) localStorage.setItem('kinoo_user', JSON.stringify(sessionData.user));
         } catch (e) {}
         window.location.href = "/dashboard";
       } else {
@@ -109,7 +130,7 @@ export default function Login() {
               </div>
               <div>
                 <label style={{ display: 'block', marginBottom: '5px', fontSize: '14px', fontWeight: '500', color: '#333' }}>Password</label>
-                <input type="password" placeholder="Enter your password" value={password} onChange={(e) => setPassword(e.target.value)} style={inputStyle} required />
+                <PasswordInput value={password} onChange={(e: any) => setPassword(e.target.value)} placeholder="Enter your password" style={inputStyle} />
               </div>
               <div style={{ textAlign: 'right' }}>
                 <button type="button" onClick={() => setShowForgot(true)} style={{ background: 'none', border: 'none', color: '#0f3460', cursor: 'pointer', fontSize: '13px', textDecoration: 'underline', padding: 0 }}>Forgot Password?</button>
@@ -150,8 +171,8 @@ export default function Login() {
                   </div>
                 )}
                 <input type="text" placeholder="Enter OTP" value={otp} onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))} maxLength={6} style={{ ...inputStyle, textAlign: 'center', letterSpacing: '8px', fontSize: '20px', fontWeight: 'bold' }} />
-                <input type="password" placeholder="New password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} style={inputStyle} />
-                <input type="password" placeholder="Confirm password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} style={inputStyle} />
+                <PasswordInput value={newPassword} onChange={(e: any) => setNewPassword(e.target.value)} placeholder="New password" style={inputStyle} />
+                <PasswordInput value={confirmPassword} onChange={(e: any) => setConfirmPassword(e.target.value)} placeholder="Confirm password" style={inputStyle} />
                 <button onClick={resetPassword} disabled={resetLoading} style={{ ...btnStyle, background: 'linear-gradient(135deg, #16a34a, #15803d)' }}>
                   {resetLoading ? "Resetting..." : "Reset Password"}
                 </button>
