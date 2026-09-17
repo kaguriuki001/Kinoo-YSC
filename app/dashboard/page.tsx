@@ -1,7 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { toast } from "sonner";
 
 export default function Dashboard() {
   const [darkMode, setDarkMode] = useState(false);
@@ -22,7 +21,8 @@ export default function Dashboard() {
         if (d?.user) {
           setUser(d.user);
           localStorage.setItem('kinoo_user', JSON.stringify(d.user));
-          fetch(`/api/check-in?userId=${d.user.id}&t=${Date.now()}`)
+          const uid = d.user.id || d.user._id;
+          fetch(`/api/check-in?userId=${uid}&t=${Date.now()}`)
             .then(r => r.json())
             .then(ci => setCheckInStatus(ci))
             .catch(() => {});
@@ -52,25 +52,26 @@ export default function Dashboard() {
         {user?.outstation && <p style={{ opacity: '0.7', fontSize: '12px', marginTop: '5px' }}>Outstation: {user.outstation}</p>}
       </div>
 
-      {checkInStatus && (
+      {/* Check-in Widget with Fallback */}
+      {checkInStatus?.partnerStatus ? (
         <Link href="/dashboard/check-in" style={{ textDecoration: 'none' }}>
           <div style={{ background: checkInStatus.checkedInThisWeek ? 'linear-gradient(135deg, #10b981, #059669)' : 'linear-gradient(135deg, #f59e0b, #d97706)', color: 'white', padding: '20px', borderRadius: '12px', marginBottom: '15px', cursor: 'pointer' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div>
                 <p style={{ fontSize: '14px', opacity: '0.9' }}>Weekly Check-in</p>
-                <p style={{ fontSize: '20px', fontWeight: 'bold' }}>
-                  {checkInStatus.checkedInThisWeek ? '✅ Done this week!' : '⏳ Pending'}
-                </p>
-                {checkInStatus.partnerStatus && (
-                  <p style={{ fontSize: '12px', opacity: '0.9', marginTop: '5px' }}>
-                    Partner {checkInStatus.partnerStatus.name}: {checkInStatus.partnerStatus.checkedIn ? '✅' : '⏳'}
-                  </p>
-                )}
+                <p style={{ fontSize: '20px', fontWeight: 'bold' }}>{checkInStatus.checkedInThisWeek ? '✅ Done this week!' : '⏳ Pending'}</p>
+                <p style={{ fontSize: '12px', opacity: '0.9', marginTop: '5px' }}>Partner {checkInStatus.partnerStatus.name}: {checkInStatus.partnerStatus.checkedIn ? '✅' : '⏳'}</p>
               </div>
               <span style={{ fontSize: '40px' }}>→</span>
             </div>
           </div>
         </Link>
+      ) : (
+        <div style={{ background: 'linear-gradient(135deg, #64748b, #475569)', color: 'white', padding: '20px', borderRadius: '12px', marginBottom: '15px' }}>
+          <p style={{ fontSize: '14px', opacity: '0.9', marginBottom: '5px' }}>Weekly Check-in</p>
+          <p style={{ fontSize: '16px', fontWeight: 'bold' }}>⏳ Waiting to be paired</p>
+          <p style={{ fontSize: '12px', opacity: '0.9', marginTop: '5px' }}>Your Moderator will assign you a Jozi partner soon. Once paired, weekly check-in begins.</p>
+        </div>
       )}
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '12px', marginBottom: '15px' }}>
@@ -97,16 +98,12 @@ export default function Dashboard() {
           <h3 style={{ fontSize: '16px' }}>Upcoming Events</h3>
           <Link href="/dashboard/events" style={{ fontSize: '13px', color: '#3b82f6', textDecoration: 'none' }}>View all →</Link>
         </div>
-        {events.length === 0 ? (
-          <p style={{ opacity: '0.6', fontSize: '14px' }}>No upcoming events.</p>
-        ) : (
-          events.map((e: any) => (
-            <div key={e._id} style={{ padding: '10px 0', borderBottom: `1px solid ${darkMode ? '#334155' : '#f0f0f0'}` }}>
-              <p style={{ fontSize: '14px', fontWeight: '600' }}>{e.title}</p>
-              <p style={{ fontSize: '12px', opacity: '0.7' }}>{new Date(e.date).toDateString()} · {e.venue}</p>
-            </div>
-          ))
-        )}
+        {events.length === 0 ? <p style={{ opacity: '0.6', fontSize: '14px' }}>No upcoming events.</p> : events.map((e: any) => (
+          <div key={e._id} style={{ padding: '10px 0', borderBottom: `1px solid ${darkMode ? '#334155' : '#f0f0f0'}` }}>
+            <p style={{ fontSize: '14px', fontWeight: '600' }}>{e.title}</p>
+            <p style={{ fontSize: '12px', opacity: '0.7' }}>{new Date(e.date).toDateString()} · {e.venue}</p>
+          </div>
+        ))}
         <Link href="/dashboard/events" style={{ display: 'block', marginTop: '12px', textAlign: 'center', background: '#3b82f6', color: 'white', padding: '12px', borderRadius: '8px', textDecoration: 'none', fontWeight: '600', fontSize: '14px' }}>
           See All Events →
         </Link>

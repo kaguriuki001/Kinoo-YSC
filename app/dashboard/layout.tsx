@@ -9,6 +9,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [darkMode, setDarkMode] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [ready, setReady] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
   const pathname = usePathname();
   const router = useRouter();
 
@@ -21,6 +22,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         if (d?.user) {
           setUser(d.user);
           localStorage.setItem('kinoo_user', JSON.stringify(d.user));
+          const uid = d.user.id || d.user._id;
+          fetch(`/api/notifications?userId=${uid}&t=${Date.now()}`)
+            .then(r => r.json())
+            .then(notifs => {
+              if (Array.isArray(notifs)) setUnreadCount(notifs.filter((n: any) => !n.read).length);
+            })
+            .catch(() => {});
         } else {
           const cached = localStorage.getItem('kinoo_user');
           if (cached) { try { setUser(JSON.parse(cached)); } catch (e) {} }
@@ -53,6 +61,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     { href: '/dashboard', label: 'Dashboard', icon: '🏠', show: true },
     { href: '/dashboard/check-in', label: 'Check-in', icon: '✅', show: true },
     { href: '/dashboard/events', label: 'Events', icon: '📅', show: true },
+    { href: '/dashboard/notifications', label: 'Notifications', icon: '🔔', show: true, badge: unreadCount },
     { href: '/dashboard/pairs', label: 'Pairs', icon: '🤝', show: isAdmin },
     { href: '/dashboard/father', label: 'Father', icon: '👑', show: isAdmin },
     { href: '/dashboard/moderator', label: 'Moderator', icon: '🛡️', show: isAdmin },
@@ -89,12 +98,16 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         <nav style={{ display: 'flex', flexDirection: 'column', gap: '3px', flex: 1 }}>
           {visibleConsoles.map((item: any) => (
             item.external ? (
-              <a key={item.href} href={item.href} target="_blank" rel="noopener noreferrer" className="sidebar-link" style={{ color: textColor, background: 'transparent', cursor: 'pointer' }}>
+              <a key={item.href} href={item.href} target="_blank" rel="noopener noreferrer" className="sidebar-link" style={{ color: textColor, background: 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 12px', borderRadius: '8px', fontSize: '13px' }}>
                 <span>{item.icon}</span>{sidebarOpen && <span>{item.label} ↗</span>}
               </a>
             ) : (
-              <Link key={item.href} href={item.href} className="sidebar-link" style={{ color: pathname === item.href ? '#fff' : textColor, background: pathname === item.href ? '#3b82f6' : 'transparent' }}>
-                <span>{item.icon}</span>{sidebarOpen && <span>{item.label}</span>}
+              <Link key={item.href} href={item.href} className="sidebar-link" style={{ color: pathname === item.href ? '#fff' : textColor, background: pathname === item.href ? '#3b82f6' : 'transparent', display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 12px', borderRadius: '8px', fontSize: '13px', position: 'relative' }}>
+                <span>{item.icon}</span>
+                {sidebarOpen && <span>{item.label}</span>}
+                {item.badge > 0 && (
+                  <span style={{ background: '#ef4444', color: 'white', fontSize: '10px', fontWeight: 'bold', padding: '2px 6px', borderRadius: '10px', marginLeft: 'auto' }}>{item.badge}</span>
+                )}
               </Link>
             )
           ))}

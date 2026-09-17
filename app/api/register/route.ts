@@ -31,7 +31,7 @@ export async function POST(req: NextRequest) {
     }
 
     if (!outstation || !['Uthiru', 'Kagondo', 'Kinoo'].includes(outstation)) {
-      return NextResponse.json({ error: "Valid outstation required (Uthiru, Kagondo, Kinoo)" }, { status: 400 });
+      return NextResponse.json({ error: "Valid outstation required" }, { status: 400 });
     }
 
     const formattedPhone = formatPhone(phone);
@@ -47,12 +47,7 @@ export async function POST(req: NextRequest) {
     const totalUsers = await db.collection('users').countDocuments();
 
     let roles = ['member'];
-    let status = 'active';
-
-    if (totalUsers === 0) {
-      roles = ['father', 'moderator', 'member'];
-      status = 'active';
-    }
+    if (totalUsers === 0) roles = ['father', 'moderator', 'member'];
 
     const result = await db.collection('users').insertOne({
       fullName,
@@ -61,7 +56,7 @@ export async function POST(req: NextRequest) {
       idNumber: idNumber || null,
       outstation,
       roles,
-      status,
+      status: 'active',
       paidCash: paidCash === true,
       registrationFee: 100,
       photo: null,
@@ -83,27 +78,58 @@ export async function POST(req: NextRequest) {
       __v: 0
     });
 
-    // Log this registration in audit log
+    const memberNumber = totalUsers + 1;
+
+    // Welcome in-app notification
+    await db.collection('notifications').insertOne({
+      id: Date.now().toString(),
+      title: '🎉 Welcome to Forge Youth!',
+      message: `You are member #${memberNumber}. Your outstation: ${outstation}. Next: your Moderator will pair you with a Jozi partner. Register for the next mass and complete your registration fee (KES 100).`,
+      type: 'welcome',
+      userId: result.insertedId.toString(),
+      timestamp: new Date(),
+      read: false
+    });
+
+    // Notify moderators about new registration
+    const moderators = await db.collection('users').find({
+      roles: { $in: ['moderator', 'father'] }
+    }).toArray();
+
+    for (const mod of moderators) {
+      await db.collection('notifications').insertOne({
+        id: Date.now().toString() + Math.random(),
+        title: '👤 New Member Registered',
+        message: `${fullName} (${formattedPhone}) joined from ${outstation} outstation. Total: ${memberNumber}.`,
+        type: 'member',
+        userId: mod._id.toString(),
+        timestamp: new Date(),
+        read: false
+      });
+    }
+
+    // Audit log
     try {
-      await fetch(`${process.env.NEXTAUTH_URL || "https://kinoo-ysc.vercel.app"}/api/audit-log`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'register_member',
-          performedBy: result.insertedId.toString(),
-          performedByName: fullName,
-          details: `Registered as ${roles.join(', ')} in ${outstation}`
-        })
+      await db.collection('audit_logs').insertOne({
+        action: 'register_member',
+        performedBy: result.insertedId.toString(),
+        performedByName: fullName,
+        targetUser: result.insertedId.toString(),
+        targetUserName: fullName,
+        details: `Registered as ${roles.join(', ')} in ${outstation}`,
+        hash: 'pending',
+        previousHash: 'GENESIS',
+        timestamp: new Date()
       });
     } catch (e) {}
 
     return NextResponse.json({
       message: roles.includes('father')
         ? "Welcome! You are the founding admin."
-        : "Registration successful! You are now a member.",
+        : "Welcome to Forge Youth! Check your notifications.",
       userId: result.insertedId.toString(),
       roles,
-      memberNumber: totalUsers + 1
+      memberNumber
     });
 
   } catch (error: any) {
