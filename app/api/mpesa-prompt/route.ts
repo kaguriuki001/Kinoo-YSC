@@ -46,10 +46,20 @@ export async function POST(req: NextRequest) {
 
     const formattedPhone = formatPhone(phone);
 
+    // Environment
+    const isProduction = process.env.MPESA_ENVIRONMENT === "production";
+
+    // Determine shortcode and transaction type
+    // CRITICAL: Sandbox test shortcode 174379 ONLY accepts CustomerPayBillOnline
+    // Till numbers only work in production
     let shortcode = "";
     let transactionType = "";
 
-    if (settings?.tillNumber) {
+    if (!isProduction) {
+      // SANDBOX MODE - always use test PayBill
+      shortcode = process.env.MPESA_SHORTCODE || "174379";
+      transactionType = "CustomerPayBillOnline";
+    } else if (settings?.tillNumber) {
       shortcode = settings.tillNumber;
       transactionType = "CustomerBuyGoodsOnline";
     } else if (settings?.paybill) {
@@ -68,7 +78,15 @@ export async function POST(req: NextRequest) {
 
     const callbackUrl = `${process.env.NEXTAUTH_URL || "https://kinoo-ysc.vercel.app"}/api/mpesa-callback`;
 
-    const data: any = {
+    // Account reference - max 12 chars, no special chars
+    let accountRef = settings?.accountNumber || "FORGEYOUTH";
+    accountRef = accountRef.replace(/[^a-zA-Z0-9]/g, "").substring(0, 12) || "FORGEYOUTH";
+
+    // Description - max 13 chars
+    let desc = purpose || "Payment";
+    desc = desc.replace(/[^a-zA-Z0-9 ]/g, "").substring(0, 13) || "Payment";
+
+    const data = {
       BusinessShortCode: shortcode,
       Password: password,
       Timestamp: timestamp,
@@ -78,9 +96,11 @@ export async function POST(req: NextRequest) {
       PartyB: shortcode,
       PhoneNumber: formattedPhone,
       CallBackURL: callbackUrl,
-      AccountReference: (settings?.accountNumber || purpose || "FORGEYOUTH").substring(0, 12),
-      TransactionDesc: (purpose || "Contribution").substring(0, 13)
+      AccountReference: accountRef,
+      TransactionDesc: desc
     };
+
+    console.log("M-Pesa request:", JSON.stringify({ ...data, Password: "***" }, null, 2));
 
     const response = await axios.post(`${baseUrl}/mpesa/stkpush/v1/processrequest`, data, {
       headers: { Authorization: `Bearer ${token}` }
@@ -108,11 +128,15 @@ export async function POST(req: NextRequest) {
     });
 
   } catch (error: any) {
-    console.error("M-Pesa error:", error.response?.data || error.message);
-    const errMsg = error.response?.data?.errorMessage
-      || error.response?.data?.ResponseDescription
+    const errData = error.response?.data;
+    console.error("M-Pesa error:", JSON.stringify(errData || error.message, null, 2));
+
+    const errMsg = errData?.errorMessage
+      || errData?.ResponseDescription
+      || errData?.errorCode
       || error.message
       || "M-Pesa failed";
-    return NextResponse.json({ error: errMsg }, { status: 500 });
+
+    return NextResponse.json({ error: errMsg, details: errData }, { status: 500 });
   }
 }
