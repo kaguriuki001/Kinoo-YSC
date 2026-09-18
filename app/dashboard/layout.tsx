@@ -61,6 +61,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     { href: '/dashboard', label: 'Dashboard', icon: '🏠', show: true },
     { href: '/dashboard/check-in', label: 'Check-in', icon: '✅', show: true },
     { href: '/dashboard/events', label: 'Events', icon: '📅', show: true },
+    { href: '/dashboard/messages', label: 'Messages', icon: '💬', show: true },
     { href: '/dashboard/notifications', label: 'Notifications', icon: '🔔', show: true, badge: unreadCount },
     { href: '/dashboard/pairs', label: 'Pairs', icon: '🤝', show: isAdmin },
     { href: '/dashboard/father', label: 'Father', icon: '👑', show: isAdmin },
