@@ -7,14 +7,20 @@ import { FeedbackPrompt } from "@/components/FeedbackPrompt";
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<any>(null);
   const [darkMode, setDarkMode] = useState(false);
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [showDrawer, setShowDrawer] = useState(false);
   const [ready, setReady] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [isMobile, setIsMobile] = useState(false);
   const pathname = usePathname();
   const router = useRouter();
 
   useEffect(() => {
     setDarkMode(localStorage.getItem('kinoo_theme') === 'dark');
+
+    const checkMobile = () => setIsMobile(window.innerWidth < 768);
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
 
     fetch("/api/auth/session", { credentials: "include", cache: "no-store" })
       .then(r => r.json())
@@ -25,9 +31,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           const uid = d.user.id || d.user._id;
           fetch(`/api/notifications?userId=${uid}&t=${Date.now()}`)
             .then(r => r.json())
-            .then(notifs => {
-              if (Array.isArray(notifs)) setUnreadCount(notifs.filter((n: any) => !n.read).length);
-            })
+            .then(notifs => { if (Array.isArray(notifs)) setUnreadCount(notifs.filter((n: any) => !n.read).length); })
             .catch(() => {});
         } else {
           const cached = localStorage.getItem('kinoo_user');
@@ -40,6 +44,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         if (cached) { try { setUser(JSON.parse(cached)); } catch (e) {} }
         setReady(true);
       });
+
+    return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
   useEffect(() => {
@@ -47,6 +53,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     document.body.style.color = darkMode ? '#e2e8f0' : '#1e293b';
     localStorage.setItem('kinoo_theme', darkMode ? 'dark' : 'light');
   }, [darkMode]);
+
+  // Close drawer on route change
+  useEffect(() => {
+    setShowDrawer(false);
+  }, [pathname]);
 
   const textColor = darkMode ? '#e2e8f0' : '#1e293b';
   const bgColor = darkMode ? '#1e293b' : '#ffffff';
@@ -59,10 +70,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   const allConsoles = [
     { href: '/dashboard', label: 'Dashboard', icon: '🏠', show: true },
+    { href: '/dashboard/messages', label: 'Messages', icon: '💬', show: true },
     { href: '/dashboard/check-in', label: 'Check-in', icon: '✅', show: true },
     { href: '/dashboard/events', label: 'Events', icon: '📅', show: true },
-    { href: '/dashboard/messages', label: 'Messages', icon: '💬', show: true },
-    { href: '/dashboard/notifications', label: 'Notifications', icon: '🔔', show: true, badge: unreadCount },
+    { href: '/dashboard/notifications', label: 'Alerts', icon: '🔔', show: true, badge: unreadCount },
     { href: '/dashboard/pairs', label: 'Pairs', icon: '🤝', show: isAdmin },
     { href: '/dashboard/father', label: 'Father', icon: '👑', show: isAdmin },
     { href: '/dashboard/moderator', label: 'Moderator', icon: '🛡️', show: isAdmin },
@@ -79,6 +90,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   ];
 
   const visibleConsoles = allConsoles.filter((c: any) => c.show);
+  // Primary tabs for bottom nav
+  const primaryTabs = visibleConsoles.filter((c: any) =>
+    ['/dashboard', '/dashboard/messages', '/dashboard/check-in', '/dashboard/events', '/dashboard/notifications'].includes(c.href)
+  );
   const internalConsoles = visibleConsoles.filter((c: any) => !c.external);
   const currentIndex = internalConsoles.findIndex((c: any) => pathname === c.href);
   const goBack = () => { if (currentIndex > 0) router.push(internalConsoles[currentIndex - 1].href); };
@@ -89,47 +104,118 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   return (
     <div style={{ display: 'flex', minHeight: '100vh', background: darkMode ? '#0f172a' : '#f1f5f9' }}>
       <FeedbackPrompt />
-      <aside className="sidebar" style={{ width: sidebarOpen ? '230px' : '60px', background: bgColor, color: textColor, padding: '15px', transition: 'width 0.3s', position: 'sticky', top: 0, height: '100vh', overflowY: 'auto', borderRight: `1px solid ${borderColor}`, display: 'flex', flexDirection: 'column' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
-          {sidebarOpen && <h2 style={{ fontSize: '18px', fontWeight: 'bold' }}>Kinoo YSC</h2>}
-          <button onClick={() => setSidebarOpen(!sidebarOpen)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '20px', color: textColor }}>{sidebarOpen ? '◀' : '▶'}</button>
-        </div>
-        {sidebarOpen && user && <p style={{ opacity: '0.7', fontSize: '13px', marginBottom: '5px' }}>{user.name || 'User'}</p>}
-        {sidebarOpen && <p style={{ opacity: '0.5', fontSize: '11px', marginBottom: '20px' }}>{roles.join(', ')}</p>}
-        <nav style={{ display: 'flex', flexDirection: 'column', gap: '3px', flex: 1 }}>
-          {visibleConsoles.map((item: any) => (
-            item.external ? (
-              <a key={item.href} href={item.href} target="_blank" rel="noopener noreferrer" className="sidebar-link" style={{ color: textColor, background: 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 12px', borderRadius: '8px', fontSize: '13px' }}>
-                <span>{item.icon}</span>{sidebarOpen && <span>{item.label} ↗</span>}
-              </a>
-            ) : (
-              <Link key={item.href} href={item.href} className="sidebar-link" style={{ color: pathname === item.href ? '#fff' : textColor, background: pathname === item.href ? '#3b82f6' : 'transparent', display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 12px', borderRadius: '8px', fontSize: '13px', position: 'relative' }}>
-                <span>{item.icon}</span>
-                {sidebarOpen && <span>{item.label}</span>}
-                {item.badge > 0 && (
-                  <span style={{ background: '#ef4444', color: 'white', fontSize: '10px', fontWeight: 'bold', padding: '2px 6px', borderRadius: '10px', marginLeft: 'auto' }}>{item.badge}</span>
-                )}
-              </Link>
-            )
-          ))}
-        </nav>
-        <div style={{ paddingTop: '20px' }}>
-          <button onClick={() => setDarkMode(!darkMode)} style={{ width: '100%', padding: '10px', background: darkMode ? '#334155' : '#e2e8f0', color: textColor, border: 'none', borderRadius: '8px', cursor: 'pointer', marginBottom: '10px', fontSize: '14px' }}>
-            {darkMode ? '☀️ Light' : '🌙 Dark'}
-          </button>
-          <button onClick={async () => { await fetch("/api/auth/signout", { method: "POST" }); localStorage.removeItem('kinoo_user'); window.location.href = "/"; }} style={{ width: '100%', padding: '10px', background: '#dc2626', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '14px' }}>
-            {sidebarOpen ? 'Sign Out' : '🚪'}
-          </button>
-        </div>
-      </aside>
-      <main className="main-content" style={{ flex: 1, padding: '20px', overflowX: 'hidden' }}>
-        <div style={{ display: 'flex', gap: '10px', marginBottom: '20px', alignItems: 'center' }}>
-          <button onClick={goBack} disabled={currentIndex <= 0} style={{ padding: '10px 20px', border: `1px solid ${borderColor}`, borderRadius: '8px', background: bgColor, color: textColor, cursor: currentIndex <= 0 ? 'not-allowed' : 'pointer', opacity: currentIndex <= 0 ? 0.4 : 1, fontSize: '16px' }}>← Back</button>
-          <button onClick={goForward} disabled={currentIndex >= internalConsoles.length - 1} style={{ padding: '10px 20px', border: `1px solid ${borderColor}`, borderRadius: '8px', background: bgColor, color: textColor, cursor: currentIndex >= internalConsoles.length - 1 ? 'not-allowed' : 'pointer', opacity: currentIndex >= internalConsoles.length - 1 ? 0.4 : 1, fontSize: '16px' }}>Forward →</button>
-          <span style={{ fontSize: '13px', opacity: '0.6', marginLeft: '10px' }}>{currentIndex + 1} / {internalConsoles.length}</span>
-        </div>
+
+      {/* Desktop sidebar */}
+      {!isMobile && (
+        <aside className="sidebar" style={{ width: sidebarOpen ? '230px' : '60px', background: bgColor, color: textColor, padding: '15px', transition: 'width 0.3s', position: 'sticky', top: 0, height: '100vh', overflowY: 'auto', borderRight: `1px solid ${borderColor}`, display: 'flex', flexDirection: 'column' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
+            {sidebarOpen && <h2 style={{ fontSize: '18px', fontWeight: 'bold' }}>Kinoo YSC</h2>}
+            <button onClick={() => setSidebarOpen(!sidebarOpen)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '20px', color: textColor }}>{sidebarOpen ? '◀' : '▶'}</button>
+          </div>
+          {sidebarOpen && user && <p style={{ opacity: '0.7', fontSize: '13px', marginBottom: '5px' }}>{user.name || 'User'}</p>}
+          {sidebarOpen && <p style={{ opacity: '0.5', fontSize: '11px', marginBottom: '20px' }}>{roles.join(', ')}</p>}
+          <nav style={{ display: 'flex', flexDirection: 'column', gap: '3px', flex: 1 }}>
+            {visibleConsoles.map((item: any) => (
+              item.external ? (
+                <a key={item.href} href={item.href} target="_blank" rel="noopener noreferrer" className="sidebar-link" style={{ color: textColor, background: 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 12px', borderRadius: '8px', fontSize: '13px' }}>
+                  <span>{item.icon}</span>{sidebarOpen && <span>{item.label} ↗</span>}
+                </a>
+              ) : (
+                <Link key={item.href} href={item.href} className="sidebar-link" style={{ color: pathname === item.href ? '#fff' : textColor, background: pathname === item.href ? '#3b82f6' : 'transparent', display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 12px', borderRadius: '8px', fontSize: '13px', position: 'relative' }}>
+                  <span>{item.icon}</span>
+                  {sidebarOpen && <span>{item.label}</span>}
+                  {item.badge > 0 && (
+                    <span style={{ background: '#ef4444', color: 'white', fontSize: '10px', fontWeight: 'bold', padding: '2px 6px', borderRadius: '10px', marginLeft: 'auto' }}>{item.badge}</span>
+                  )}
+                </Link>
+              )
+            ))}
+          </nav>
+          <div style={{ paddingTop: '20px' }}>
+            <button onClick={() => setDarkMode(!darkMode)} style={{ width: '100%', padding: '10px', background: darkMode ? '#334155' : '#e2e8f0', color: textColor, border: 'none', borderRadius: '8px', cursor: 'pointer', marginBottom: '10px', fontSize: '14px' }}>
+              {darkMode ? '☀️ Light' : '🌙 Dark'}
+            </button>
+            <button onClick={async () => { await fetch("/api/auth/signout", { method: "POST" }); localStorage.removeItem('kinoo_user'); window.location.href = "/"; }} style={{ width: '100%', padding: '10px', background: '#dc2626', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '14px' }}>
+              {sidebarOpen ? 'Sign Out' : '🚪'}
+            </button>
+          </div>
+        </aside>
+      )}
+
+      {/* Mobile drawer (slide from left) */}
+      {isMobile && showDrawer && (
+        <>
+          <div onClick={() => setShowDrawer(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 998 }}></div>
+          <aside style={{ position: 'fixed', top: 0, left: 0, width: '260px', height: '100vh', background: bgColor, color: textColor, padding: '15px', zIndex: 999, overflowY: 'auto', boxShadow: '2px 0 20px rgba(0,0,0,0.2)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
+              <h2 style={{ fontSize: '18px', fontWeight: 'bold' }}>Kinoo YSC</h2>
+              <button onClick={() => setShowDrawer(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '22px', color: textColor }}>✕</button>
+            </div>
+            {user && <p style={{ opacity: '0.7', fontSize: '13px', marginBottom: '5px' }}>{user.name || 'User'}</p>}
+            <p style={{ opacity: '0.5', fontSize: '11px', marginBottom: '20px' }}>{roles.join(', ')}</p>
+            <nav style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+              {visibleConsoles.map((item: any) => (
+                item.external ? (
+                  <a key={item.href} href={item.href} target="_blank" rel="noopener noreferrer" style={{ color: textColor, background: 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', padding: '12px', borderRadius: '8px', fontSize: '14px', textDecoration: 'none' }}>
+                    <span>{item.icon}</span><span>{item.label} ↗</span>
+                  </a>
+                ) : (
+                  <Link key={item.href} href={item.href} style={{ color: pathname === item.href ? '#fff' : textColor, background: pathname === item.href ? '#3b82f6' : 'transparent', display: 'flex', alignItems: 'center', gap: '8px', padding: '12px', borderRadius: '8px', fontSize: '14px', textDecoration: 'none', position: 'relative' }}>
+                    <span>{item.icon}</span><span>{item.label}</span>
+                    {item.badge > 0 && <span style={{ background: '#ef4444', color: 'white', fontSize: '10px', fontWeight: 'bold', padding: '2px 6px', borderRadius: '10px', marginLeft: 'auto' }}>{item.badge}</span>}
+                  </Link>
+                )
+              ))}
+            </nav>
+            <div style={{ paddingTop: '20px', marginTop: '20px', borderTop: `1px solid ${borderColor}` }}>
+              <button onClick={() => setDarkMode(!darkMode)} style={{ width: '100%', padding: '12px', background: darkMode ? '#334155' : '#e2e8f0', color: textColor, border: 'none', borderRadius: '8px', cursor: 'pointer', marginBottom: '10px', fontSize: '14px' }}>
+                {darkMode ? '☀️ Light' : '🌙 Dark'}
+              </button>
+              <button onClick={async () => { await fetch("/api/auth/signout", { method: "POST" }); localStorage.removeItem('kinoo_user'); window.location.href = "/"; }} style={{ width: '100%', padding: '12px', background: '#dc2626', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '14px' }}>
+                Sign Out
+              </button>
+            </div>
+          </aside>
+        </>
+      )}
+
+      {/* Main content */}
+      <main className="main-content" style={{ flex: 1, padding: isMobile ? '12px' : '20px', paddingBottom: isMobile ? '80px' : '20px', overflowX: 'hidden', maxWidth: '100%' }}>
+        {!isMobile && (
+          <div style={{ display: 'flex', gap: '10px', marginBottom: '20px', alignItems: 'center' }}>
+            <button onClick={goBack} disabled={currentIndex <= 0} style={{ padding: '10px 20px', border: `1px solid ${borderColor}`, borderRadius: '8px', background: bgColor, color: textColor, cursor: currentIndex <= 0 ? 'not-allowed' : 'pointer', opacity: currentIndex <= 0 ? 0.4 : 1, fontSize: '16px' }}>← Back</button>
+            <button onClick={goForward} disabled={currentIndex >= internalConsoles.length - 1} style={{ padding: '10px 20px', border: `1px solid ${borderColor}`, borderRadius: '8px', background: bgColor, color: textColor, cursor: currentIndex >= internalConsoles.length - 1 ? 'not-allowed' : 'pointer', opacity: currentIndex >= internalConsoles.length - 1 ? 0.4 : 1, fontSize: '16px' }}>Forward →</button>
+            <span style={{ fontSize: '13px', opacity: '0.6', marginLeft: '10px' }}>{currentIndex + 1} / {internalConsoles.length}</span>
+          </div>
+        )}
+
+        {isMobile && (
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+            <button onClick={() => setShowDrawer(true)} style={{ background: 'none', border: 'none', fontSize: '26px', cursor: 'pointer', color: textColor, padding: '4px' }}>☰</button>
+            <h1 style={{ fontSize: '18px', fontWeight: 'bold' }}>Kinoo YSC</h1>
+            <button onClick={() => setDarkMode(!darkMode)} style={{ background: 'none', border: 'none', fontSize: '22px', cursor: 'pointer', padding: '4px' }}>
+              {darkMode ? '☀️' : '🌙'}
+            </button>
+          </div>
+        )}
+
         {children}
       </main>
+
+      {/* Mobile bottom nav */}
+      {isMobile && (
+        <nav style={{ position: 'fixed', bottom: 0, left: 0, right: 0, background: bgColor, borderTop: `1px solid ${borderColor}`, display: 'flex', justifyContent: 'space-around', padding: '6px 0', zIndex: 100, boxShadow: '0 -2px 10px rgba(0,0,0,0.05)' }}>
+          {primaryTabs.map((tab: any) => (
+            <Link key={tab.href} href={tab.href} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '6px 12px', textDecoration: 'none', color: pathname === tab.href ? '#3b82f6' : textColor, position: 'relative', flex: 1, maxWidth: '80px' }}>
+              <span style={{ fontSize: '22px' }}>{tab.icon}</span>
+              <span style={{ fontSize: '10px', marginTop: '2px', fontWeight: pathname === tab.href ? 'bold' : 'normal' }}>{tab.label}</span>
+              {tab.badge > 0 && (
+                <span style={{ position: 'absolute', top: '2px', right: '20%', background: '#ef4444', color: 'white', fontSize: '9px', fontWeight: 'bold', padding: '1px 5px', borderRadius: '10px' }}>{tab.badge}</span>
+              )}
+            </Link>
+          ))}
+        </nav>
+      )}
     </div>
   );
 }

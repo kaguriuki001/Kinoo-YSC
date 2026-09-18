@@ -12,10 +12,14 @@ export default function MessagesPage() {
   const [showNewChat, setShowNewChat] = useState(false);
   const [allUsers, setAllUsers] = useState<any[]>([]);
   const [searchUser, setSearchUser] = useState("");
+  const [isMobile, setIsMobile] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setDarkMode(localStorage.getItem('kinoo_theme') === 'dark');
+    const checkMobile = () => setIsMobile(window.innerWidth < 768);
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
     const saved = localStorage.getItem('kinoo_user');
     if (saved) {
       try {
@@ -25,12 +29,13 @@ export default function MessagesPage() {
         loadUsers();
       } catch (e) {}
     }
+    return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
   useEffect(() => {
     if (activeConv) {
       loadMessages(activeConv.conversationId);
-      const interval = setInterval(() => loadMessages(activeConv.conversationId), 5000);
+      const interval = setInterval(() => loadMessages(activeConv.conversationId), 4000);
       return () => clearInterval(interval);
     }
   }, [activeConv]);
@@ -125,79 +130,145 @@ export default function MessagesPage() {
   const textColor = darkMode ? '#e2e8f0' : '#1e293b';
   const bgColor = darkMode ? '#1e293b' : 'white';
   const borderColor = darkMode ? '#334155' : '#e5e7eb';
+  const chatBg = darkMode ? '#0f172a' : '#efeae2';
   const myId = user?.id || user?._id;
 
   if (!user) return <div style={{ padding: '40px', textAlign: 'center' }}>Loading...</div>;
 
   const filteredUsers = allUsers.filter(u => u._id !== myId && u.fullName?.toLowerCase().includes(searchUser.toLowerCase()));
+  const showChatList = !isMobile || !activeConv;
+  const showChatWindow = !isMobile || activeConv;
 
   return (
-    <div style={{ display: 'flex', height: 'calc(100vh - 140px)', background: bgColor, borderRadius: '12px', border: `1px solid ${borderColor}`, color: textColor, overflow: 'hidden' }}>
-      <div style={{ width: '300px', borderRight: `1px solid ${borderColor}`, display: 'flex', flexDirection: 'column' }}>
-        <div style={{ padding: '15px', borderBottom: `1px solid ${borderColor}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <h2 style={{ fontSize: '18px', fontWeight: 'bold' }}>💬 Chats</h2>
-          <button onClick={() => setShowNewChat(!showNewChat)} style={{ background: '#3b82f6', color: 'white', border: 'none', padding: '6px 12px', borderRadius: '6px', cursor: 'pointer', fontSize: '12px', fontWeight: '600' }}>+ New</button>
-        </div>
-        {showNewChat && (
-          <div style={{ padding: '15px', borderBottom: `1px solid ${borderColor}` }}>
-            <button onClick={startBroadcast} style={{ width: '100%', background: '#8b5cf6', color: 'white', border: 'none', padding: '10px', borderRadius: '8px', cursor: 'pointer', marginBottom: '10px', fontSize: '13px', fontWeight: '600' }}>📢 Broadcast to All</button>
-            <input placeholder="Search members..." value={searchUser} onChange={(e) => setSearchUser(e.target.value)} style={{ width: '100%', padding: '8px 12px', borderRadius: '8px', border: `1px solid ${borderColor}`, background: darkMode ? '#334155' : 'white', color: textColor, fontSize: '13px', boxSizing: 'border-box' as const, marginBottom: '8px' }} />
-            <div style={{ maxHeight: '200px', overflowY: 'auto' }}>
-              {filteredUsers.map(u => (
-                <div key={u._id} onClick={() => startDirectChat(u._id)} style={{ padding: '8px', cursor: 'pointer', borderRadius: '6px', marginBottom: '4px', background: darkMode ? '#334155' : '#f8fafc' }}>
-                  <p style={{ fontSize: '13px', fontWeight: '600' }}>{u.fullName}</p>
-                  <p style={{ fontSize: '11px', opacity: '0.6' }}>{u.phone}</p>
-                </div>
-              ))}
-            </div>
+    <div style={{ display: 'flex', height: isMobile ? 'calc(100vh - 130px)' : 'calc(100vh - 140px)', background: bgColor, borderRadius: isMobile ? '0' : '12px', border: isMobile ? 'none' : `1px solid ${borderColor}`, color: textColor, overflow: 'hidden' }}>
+      {/* Chat List */}
+      {showChatList && (
+        <div style={{ width: isMobile ? '100%' : '340px', borderRight: isMobile ? 'none' : `1px solid ${borderColor}`, display: 'flex', flexDirection: 'column', background: bgColor }}>
+          <div style={{ padding: '12px 15px', borderBottom: `1px solid ${borderColor}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <h2 style={{ fontSize: '20px', fontWeight: 'bold' }}>Chats</h2>
+            <button onClick={() => setShowNewChat(!showNewChat)} style={{ background: '#3b82f6', color: 'white', border: 'none', padding: '8px 14px', borderRadius: '20px', cursor: 'pointer', fontSize: '13px', fontWeight: '600' }}>+ New</button>
           </div>
-        )}
-        <div style={{ flex: 1, overflowY: 'auto' }}>
-          {conversations.length === 0 ? (
-            <p style={{ padding: '20px', textAlign: 'center', opacity: '0.6', fontSize: '13px' }}>No conversations yet</p>
-          ) : conversations.map(c => (
-            <div key={c.conversationId} onClick={() => setActiveConv(c)} style={{ padding: '12px 15px', cursor: 'pointer', borderBottom: `1px solid ${borderColor}`, background: activeConv?.conversationId === c.conversationId ? (darkMode ? '#334155' : '#eff6ff') : 'transparent' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <p style={{ fontWeight: '600', fontSize: '14px' }}>{c.name}</p>
-                {c.unread > 0 && <span style={{ background: '#ef4444', color: 'white', fontSize: '10px', padding: '2px 7px', borderRadius: '10px', fontWeight: 'bold' }}>{c.unread}</span>}
-              </div>
-              <p style={{ fontSize: '12px', opacity: '0.6', marginTop: '3px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.lastMessage || 'New conversation'}</p>
-            </div>
-          ))}
-        </div>
-      </div>
 
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-        {!activeConv ? (
-          <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', opacity: '0.5' }}>
-            <p style={{ fontSize: '48px' }}>💬</p>
-            <p style={{ marginTop: '10px' }}>Select a chat or start a new one</p>
-          </div>
-        ) : (
-          <>
-            <div style={{ padding: '15px', borderBottom: `1px solid ${borderColor}`, fontWeight: 'bold' }}>{activeConv.name}</div>
-            <div style={{ flex: 1, overflowY: 'auto', padding: '15px', background: darkMode ? '#0f172a' : '#f8fafc' }}>
-              {messages.map((m: any) => {
-                const isMine = m.senderId === myId;
-                return (
-                  <div key={m._id} style={{ display: 'flex', justifyContent: isMine ? 'flex-end' : 'flex-start', marginBottom: '10px' }}>
-                    <div style={{ maxWidth: '70%', background: isMine ? '#3b82f6' : (darkMode ? '#334155' : 'white'), color: isMine ? 'white' : textColor, padding: '10px 14px', borderRadius: '12px', boxShadow: '0 1px 2px rgba(0,0,0,0.1)' }}>
-                      {!isMine && <p style={{ fontSize: '11px', fontWeight: 'bold', opacity: '0.8', marginBottom: '3px' }}>{m.senderName}</p>}
-                      <p style={{ fontSize: '14px', lineHeight: '1.4', wordBreak: 'break-word' }}>{m.text}</p>
-                      <p style={{ fontSize: '10px', opacity: '0.7', marginTop: '4px', textAlign: 'right' }}>{new Date(m.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
+          {showNewChat && (
+            <div style={{ padding: '15px', borderBottom: `1px solid ${borderColor}`, background: darkMode ? '#1f2937' : '#f9fafb' }}>
+              <button onClick={startBroadcast} style={{ width: '100%', background: '#8b5cf6', color: 'white', border: 'none', padding: '12px', borderRadius: '10px', cursor: 'pointer', marginBottom: '10px', fontSize: '13px', fontWeight: '600' }}>
+                📢 Broadcast to All Members
+              </button>
+              <input placeholder="Search members..." value={searchUser} onChange={(e) => setSearchUser(e.target.value)} style={{ width: '100%', padding: '10px 14px', borderRadius: '10px', border: `1px solid ${borderColor}`, background: darkMode ? '#334155' : 'white', color: textColor, fontSize: '14px', boxSizing: 'border-box' as const, marginBottom: '10px', outline: 'none' }} />
+              <div style={{ maxHeight: '180px', overflowY: 'auto' }}>
+                {filteredUsers.map(u => (
+                  <div key={u._id} onClick={() => startDirectChat(u._id)} style={{ padding: '10px', cursor: 'pointer', borderRadius: '8px', marginBottom: '5px', background: darkMode ? '#334155' : 'white', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: '#3b82f6', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '14px', flexShrink: 0 }}>
+                      {u.fullName?.charAt(0)?.toUpperCase()}
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <p style={{ fontSize: '14px', fontWeight: '600' }}>{u.fullName}</p>
+                      <p style={{ fontSize: '12px', opacity: '0.6' }}>{u.phone}</p>
                     </div>
                   </div>
-                );
-              })}
-              <div ref={messagesEndRef} />
+                ))}
+                {filteredUsers.length === 0 && <p style={{ textAlign: 'center', opacity: '0.5', fontSize: '13px', padding: '10px' }}>No members found</p>}
+              </div>
             </div>
-            <div style={{ padding: '12px 15px', borderTop: `1px solid ${borderColor}`, display: 'flex', gap: '8px' }}>
-              <input placeholder="Type a message..." value={newMessage} onChange={(e) => setNewMessage(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') sendMessage(); }} style={{ flex: 1, padding: '10px 14px', borderRadius: '22px', border: `1px solid ${borderColor}`, background: darkMode ? '#334155' : '#f8fafc', color: textColor, fontSize: '14px', outline: 'none', boxSizing: 'border-box' as const }} />
-              <button onClick={sendMessage} style={{ background: '#3b82f6', color: 'white', border: 'none', borderRadius: '50%', width: '42px', height: '42px', cursor: 'pointer', fontSize: '18px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>➤</button>
+          )}
+
+          <div style={{ flex: 1, overflowY: 'auto' }}>
+            {conversations.length === 0 ? (
+              <div style={{ padding: '40px 20px', textAlign: 'center', opacity: '0.5' }}>
+                <p style={{ fontSize: '48px', marginBottom: '10px' }}>💬</p>
+                <p style={{ fontSize: '14px' }}>No chats yet</p>
+                <p style={{ fontSize: '12px', marginTop: '5px' }}>Tap "+ New" to start</p>
+              </div>
+            ) : conversations.map(c => (
+              <div key={c.conversationId} onClick={() => setActiveConv(c)} style={{ padding: '12px 15px', cursor: 'pointer', borderBottom: `1px solid ${borderColor}`, background: activeConv?.conversationId === c.conversationId ? (darkMode ? '#334155' : '#eff6ff') : 'transparent', display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: c.type === 'broadcast' ? '#8b5cf6' : '#10b981', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '18px', flexShrink: 0 }}>
+                  {c.type === 'broadcast' ? '📢' : c.name?.charAt(0)?.toUpperCase()}
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '3px' }}>
+                    <p style={{ fontWeight: '600', fontSize: '15px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.name}</p>
+                    <span style={{ fontSize: '11px', opacity: '0.6', flexShrink: 0, marginLeft: '5px' }}>{c.lastMessageAt ? new Date(c.lastMessageAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <p style={{ fontSize: '13px', opacity: '0.7', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>{c.lastMessage || 'No messages yet'}</p>
+                    {c.unread > 0 && <span style={{ background: '#25d366', color: 'white', fontSize: '11px', padding: '2px 8px', borderRadius: '10px', fontWeight: 'bold', marginLeft: '5px', flexShrink: 0 }}>{c.unread}</span>}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Chat Window */}
+      {showChatWindow && (
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', background: chatBg }}>
+          {!activeConv ? (
+            <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', opacity: '0.5' }}>
+              <p style={{ fontSize: '64px' }}>💬</p>
+              <p style={{ marginTop: '15px', fontSize: '15px' }}>Select a chat or start a new one</p>
             </div>
-          </>
-        )}
-      </div>
+          ) : (
+            <>
+              {/* Chat header */}
+              <div style={{ padding: '10px 15px', background: darkMode ? '#1e293b' : '#075e54', color: 'white', display: 'flex', alignItems: 'center', gap: '12px', boxShadow: '0 1px 4px rgba(0,0,0,0.15)' }}>
+                {isMobile && (
+                  <button onClick={() => setActiveConv(null)} style={{ background: 'none', border: 'none', color: 'white', fontSize: '22px', cursor: 'pointer', padding: '4px', marginLeft: '-8px' }}>←</button>
+                )}
+                <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: 'rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '16px', flexShrink: 0 }}>
+                  {activeConv.type === 'broadcast' ? '📢' : activeConv.name?.charAt(0)?.toUpperCase()}
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <p style={{ fontWeight: '600', fontSize: '16px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{activeConv.name}</p>
+                  <p style={{ fontSize: '12px', opacity: '0.8' }}>{activeConv.type === 'broadcast' ? 'All members' : 'online'}</p>
+                </div>
+              </div>
+
+              {/* Messages */}
+              <div style={{ flex: 1, overflowY: 'auto', padding: isMobile ? '12px' : '20px', backgroundImage: darkMode ? 'none' : 'url("data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%22100%22 height=%22100%22 viewBox=%220 0 100 100%22><rect fill=%22%23efeae2%22 width=%22100%22 height=%22100%22/><path fill=%22%23e5ddd5%22 d=%22M20 20h5v5h-5zM70 40h5v5h-5zM40 80h5v5h-5z%22/></svg>")' }}>
+                {messages.map((m: any) => {
+                  const isMine = m.senderId === myId;
+                  return (
+                    <div key={m._id} style={{ display: 'flex', justifyContent: isMine ? 'flex-end' : 'flex-start', marginBottom: '6px' }}>
+                      <div style={{
+                        maxWidth: isMobile ? '85%' : '65%',
+                        background: isMine ? '#dcf8c6' : (darkMode ? '#334155' : 'white'),
+                        color: isMine ? '#000' : textColor,
+                        padding: '8px 12px',
+                        borderRadius: isMine ? '12px 12px 2px 12px' : '12px 12px 12px 2px',
+                        boxShadow: '0 1px 1px rgba(0,0,0,0.08)',
+                        position: 'relative'
+                      }}>
+                        {!isMine && <p style={{ fontSize: '11px', fontWeight: 'bold', color: '#075e54', marginBottom: '3px' }}>{m.senderName}</p>}
+                        <p style={{ fontSize: '14px', lineHeight: '1.4', wordBreak: 'break-word' }}>{m.text}</p>
+                        <p style={{ fontSize: '10px', opacity: '0.6', marginTop: '3px', textAlign: 'right' }}>
+                          {new Date(m.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          {isMine && <span style={{ marginLeft: '4px' }}>✓✓</span>}
+                        </p>
+                      </div>
+                    </div>
+                  );
+                })}
+                <div ref={messagesEndRef} />
+              </div>
+
+              {/* Input */}
+              <div style={{ padding: isMobile ? '8px' : '12px 15px', background: darkMode ? '#1e293b' : '#f0f0f0', display: 'flex', gap: '8px', alignItems: 'center' }}>
+                <input
+                  placeholder="Type a message..."
+                  value={newMessage}
+                  onChange={(e) => setNewMessage(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); } }}
+                  style={{ flex: 1, padding: '12px 16px', borderRadius: '24px', border: 'none', background: darkMode ? '#334155' : 'white', color: textColor, fontSize: '15px', outline: 'none', boxSizing: 'border-box' as const }}
+                />
+                <button onClick={sendMessage} style={{ background: '#25d366', color: 'white', border: 'none', borderRadius: '50%', width: '46px', height: '46px', cursor: 'pointer', fontSize: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  ➤
+                </button>
+              </div>
+            </>
+          )}
+        </div>
+      )}
     </div>
   );
 }
