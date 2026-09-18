@@ -35,6 +35,11 @@ export default function MessagesPage() {
   useEffect(() => {
     if (activeConv) {
       loadMessages(activeConv.conversationId);
+      markAsRead(activeConv.conversationId);
+      // Clear unread count locally immediately
+      setConversations(prev => prev.map(c =>
+        c.conversationId === activeConv.conversationId ? { ...c, unread: 0 } : c
+      ));
       const interval = setInterval(() => loadMessages(activeConv.conversationId), 4000);
       return () => clearInterval(interval);
     }
@@ -63,6 +68,18 @@ export default function MessagesPage() {
       .then(r => r.json())
       .then(d => { if (Array.isArray(d)) setMessages(d); })
       .catch(() => {});
+  };
+
+  const markAsRead = async (cid: string) => {
+    const uid = user?.id || user?._id;
+    if (!uid) return;
+    try {
+      await fetch("/api/messages/read", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ conversationId: cid, userId: uid })
+      });
+    } catch (e) {}
   };
 
   const startDirectChat = async (otherUserId: string) => {
@@ -141,7 +158,6 @@ export default function MessagesPage() {
 
   return (
     <div style={{ display: 'flex', height: isMobile ? 'calc(100vh - 130px)' : 'calc(100vh - 140px)', background: bgColor, borderRadius: isMobile ? '0' : '12px', border: isMobile ? 'none' : `1px solid ${borderColor}`, color: textColor, overflow: 'hidden' }}>
-      {/* Chat List */}
       {showChatList && (
         <div style={{ width: isMobile ? '100%' : '340px', borderRight: isMobile ? 'none' : `1px solid ${borderColor}`, display: 'flex', flexDirection: 'column', background: bgColor }}>
           <div style={{ padding: '12px 15px', borderBottom: `1px solid ${borderColor}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -191,7 +207,9 @@ export default function MessagesPage() {
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <p style={{ fontSize: '13px', opacity: '0.7', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>{c.lastMessage || 'No messages yet'}</p>
-                    {c.unread > 0 && <span style={{ background: '#25d366', color: 'white', fontSize: '11px', padding: '2px 8px', borderRadius: '10px', fontWeight: 'bold', marginLeft: '5px', flexShrink: 0 }}>{c.unread}</span>}
+                    {c.unread > 0 && activeConv?.conversationId !== c.conversationId && (
+                      <span style={{ background: '#25d366', color: 'white', fontSize: '11px', padding: '2px 8px', borderRadius: '10px', fontWeight: 'bold', marginLeft: '5px', flexShrink: 0 }}>{c.unread}</span>
+                    )}
                   </div>
                 </div>
               </div>
@@ -200,7 +218,6 @@ export default function MessagesPage() {
         </div>
       )}
 
-      {/* Chat Window */}
       {showChatWindow && (
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', background: chatBg }}>
           {!activeConv ? (
@@ -210,7 +227,6 @@ export default function MessagesPage() {
             </div>
           ) : (
             <>
-              {/* Chat header */}
               <div style={{ padding: '10px 15px', background: darkMode ? '#1e293b' : '#075e54', color: 'white', display: 'flex', alignItems: 'center', gap: '12px', boxShadow: '0 1px 4px rgba(0,0,0,0.15)' }}>
                 {isMobile && (
                   <button onClick={() => setActiveConv(null)} style={{ background: 'none', border: 'none', color: 'white', fontSize: '22px', cursor: 'pointer', padding: '4px', marginLeft: '-8px' }}>←</button>
@@ -224,8 +240,7 @@ export default function MessagesPage() {
                 </div>
               </div>
 
-              {/* Messages */}
-              <div style={{ flex: 1, overflowY: 'auto', padding: isMobile ? '12px' : '20px', backgroundImage: darkMode ? 'none' : 'url("data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%22100%22 height=%22100%22 viewBox=%220 0 100 100%22><rect fill=%22%23efeae2%22 width=%22100%22 height=%22100%22/><path fill=%22%23e5ddd5%22 d=%22M20 20h5v5h-5zM70 40h5v5h-5zM40 80h5v5h-5z%22/></svg>")' }}>
+              <div style={{ flex: 1, overflowY: 'auto', padding: isMobile ? '12px' : '20px' }}>
                 {messages.map((m: any) => {
                   const isMine = m.senderId === myId;
                   return (
@@ -236,8 +251,7 @@ export default function MessagesPage() {
                         color: isMine ? '#000' : textColor,
                         padding: '8px 12px',
                         borderRadius: isMine ? '12px 12px 2px 12px' : '12px 12px 12px 2px',
-                        boxShadow: '0 1px 1px rgba(0,0,0,0.08)',
-                        position: 'relative'
+                        boxShadow: '0 1px 1px rgba(0,0,0,0.08)'
                       }}>
                         {!isMine && <p style={{ fontSize: '11px', fontWeight: 'bold', color: '#075e54', marginBottom: '3px' }}>{m.senderName}</p>}
                         <p style={{ fontSize: '14px', lineHeight: '1.4', wordBreak: 'break-word' }}>{m.text}</p>
@@ -252,7 +266,6 @@ export default function MessagesPage() {
                 <div ref={messagesEndRef} />
               </div>
 
-              {/* Input */}
               <div style={{ padding: isMobile ? '8px' : '12px 15px', background: darkMode ? '#1e293b' : '#f0f0f0', display: 'flex', gap: '8px', alignItems: 'center' }}>
                 <input
                   placeholder="Type a message..."
