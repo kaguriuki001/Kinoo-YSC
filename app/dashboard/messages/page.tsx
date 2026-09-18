@@ -14,9 +14,8 @@ export default function MessagesPage() {
   const [allUsers, setAllUsers] = useState<any[]>([]);
   const [searchUser, setSearchUser] = useState("");
   const [isMobile, setIsMobile] = useState(false);
-  const [showStickers, setShowStickers] = useState(false);
+  const [drawerMode, setDrawerMode] = useState<"closed"|"stickers"|"gifs">("closed");
   const [stickerPack, setStickerPack] = useState(0);
-  const [showGifs, setShowGifs] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -161,9 +160,7 @@ export default function MessagesPage() {
       readBy: [uid]
     };
     setMessages(prev => [...prev, optimistic]);
-    setShowStickers(false);
-    setShowGifs(false);
-
+    setDrawerMode("closed");
     try {
       const res = await fetch("/api/messages/sticker", {
         method: "POST",
@@ -194,7 +191,6 @@ export default function MessagesPage() {
             <h2 style={{ fontSize: "20px", fontWeight: "bold" }}>Chats</h2>
             <button onClick={() => setShowNewChat(!showNewChat)} style={{ background: "#3b82f6", color: "white", border: "none", padding: "8px 14px", borderRadius: "20px", cursor: "pointer", fontSize: "13px", fontWeight: "600" }}>+ New</button>
           </div>
-
           {showNewChat && (
             <div style={{ padding: "15px", borderBottom: "1px solid " + borderColor, background: darkMode ? "#1f2937" : "#f9fafb" }}>
               <button onClick={startBroadcast} style={{ width: "100%", background: "#8b5cf6", color: "white", border: "none", padding: "12px", borderRadius: "10px", cursor: "pointer", marginBottom: "10px", fontSize: "13px", fontWeight: "600" }}>📢 Broadcast to All Members</button>
@@ -213,13 +209,11 @@ export default function MessagesPage() {
               </div>
             </div>
           )}
-
           <div style={{ flex: 1, overflowY: "auto" }}>
             {conversations.length === 0 ? (
               <div style={{ padding: "40px 20px", textAlign: "center", opacity: "0.5" }}>
                 <p style={{ fontSize: "48px", marginBottom: "10px" }}>💬</p>
                 <p style={{ fontSize: "14px" }}>No chats yet</p>
-                <p style={{ fontSize: "12px", marginTop: "5px" }}>Tap "+ New" to start</p>
               </div>
             ) : conversations.map(c => (
               <div key={c.conversationId} onClick={() => setActiveConv(c)} style={{ padding: "12px 15px", cursor: "pointer", borderBottom: "1px solid " + borderColor, background: activeConv?.conversationId === c.conversationId ? (darkMode ? "#334155" : "#eff6ff") : "transparent", display: "flex", alignItems: "center", gap: "12px" }}>
@@ -273,7 +267,7 @@ export default function MessagesPage() {
                         {isSticker ? (
                           <div>
                             {m.stickers.map((s: any, i: number) => (
-                              s.type === "gif" ? <img key={i} src={s.content} alt="gif" style={{ maxWidth: "180px", borderRadius: "12px" }} /> : <p key={i} style={{ fontSize: "72px", lineHeight: 1, margin: 0 }}>{s.content}</p>
+                              s.type === "gif" ? <img key={i} src={s.content} alt="gif" style={{ maxWidth: "220px", borderRadius: "12px" }} /> : <p key={i} style={{ fontSize: "96px", lineHeight: 1, margin: 0, textAlign: isMine ? "right" : "left" }}>{s.content}</p>
                             ))}
                             <p style={{ fontSize: "10px", opacity: "0.6", textAlign: isMine ? "right" : "left", marginTop: "3px", color: textColor }}>
                               {new Date(m.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
@@ -296,40 +290,44 @@ export default function MessagesPage() {
                 <div ref={messagesEndRef} />
               </div>
 
-              {showStickers && (
-                <div style={{ background: darkMode ? "#1e293b" : "white", borderTop: "1px solid " + borderColor, maxHeight: "300px", overflowY: "auto" }}>
-                  <div style={{ display: "flex", gap: "8px", padding: "10px 15px", overflowX: "auto", borderBottom: "1px solid " + borderColor }}>
-                    {STICKER_PACKS.map((pack, i) => (
-                      <button key={i} onClick={() => setStickerPack(i)} style={{ padding: "6px 12px", borderRadius: "20px", border: "none", background: stickerPack === i ? "#3b82f6" : (darkMode ? "#334155" : "#f1f5f9"), color: stickerPack === i ? "white" : textColor, cursor: "pointer", fontSize: "12px", whiteSpace: "nowrap", fontWeight: "600" }}>{pack.name}</button>
-                    ))}
-                    <button onClick={() => { setShowGifs(true); setShowStickers(false); }} style={{ padding: "6px 12px", borderRadius: "20px", border: "none", background: darkMode ? "#334155" : "#f1f5f9", color: textColor, cursor: "pointer", fontSize: "12px", whiteSpace: "nowrap", fontWeight: "600" }}>🎬 GIFs</button>
+              {drawerMode !== "closed" && (
+                <div style={{ background: darkMode ? "#1e293b" : "#f8fafc", borderTop: "1px solid " + borderColor, maxHeight: isMobile ? "45vh" : "340px", overflowY: "auto" }}>
+                  <div style={{ display: "flex", gap: "6px", padding: "10px 12px", overflowX: "auto", borderBottom: "1px solid " + borderColor, alignItems: "center" }}>
+                    <button onClick={() => setDrawerMode("stickers")} style={{ padding: "8px 14px", borderRadius: "20px", border: "none", background: drawerMode === "stickers" ? "#3b82f6" : (darkMode ? "#334155" : "#e5e7eb"), color: drawerMode === "stickers" ? "white" : textColor, cursor: "pointer", fontSize: "12px", fontWeight: "600", whiteSpace: "nowrap" }}>😀 Emoji</button>
+                    <button onClick={() => setDrawerMode("gifs")} style={{ padding: "8px 14px", borderRadius: "20px", border: "none", background: drawerMode === "gifs" ? "#3b82f6" : (darkMode ? "#334155" : "#e5e7eb"), color: drawerMode === "gifs" ? "white" : textColor, cursor: "pointer", fontSize: "12px", fontWeight: "600", whiteSpace: "nowrap" }}>🎬 GIFs</button>
+                    <button onClick={() => setDrawerMode("closed")} style={{ marginLeft: "auto", background: "none", border: "none", fontSize: "20px", cursor: "pointer", color: textColor, padding: "4px 10px" }}>✕</button>
                   </div>
-                  <div style={{ display: "grid", gridTemplateColumns: "repeat(8, 1fr)", gap: "5px", padding: "10px 15px" }}>
-                    {STICKER_PACKS[stickerPack].stickers.map((s, i) => (
-                      <button key={i} onClick={() => sendSticker(s, "emoji")} style={{ background: "none", border: "none", fontSize: "28px", cursor: "pointer", padding: "4px", borderRadius: "6px" }}>{s}</button>
-                    ))}
-                  </div>
-                </div>
-              )}
 
-              {showGifs && (
-                <div style={{ background: darkMode ? "#1e293b" : "white", borderTop: "1px solid " + borderColor, maxHeight: "300px", overflowY: "auto" }}>
-                  <div style={{ display: "flex", gap: "8px", padding: "10px 15px", borderBottom: "1px solid " + borderColor }}>
-                    <button onClick={() => { setShowStickers(true); setShowGifs(false); }} style={{ padding: "6px 12px", borderRadius: "20px", border: "none", background: darkMode ? "#334155" : "#f1f5f9", color: textColor, cursor: "pointer", fontSize: "12px", fontWeight: "600" }}>😀 Emoji</button>
-                    <button style={{ padding: "6px 12px", borderRadius: "20px", border: "none", background: "#3b82f6", color: "white", cursor: "pointer", fontSize: "12px", fontWeight: "600" }}>🎬 GIFs</button>
-                  </div>
-                  <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "8px", padding: "10px 15px" }}>
-                    {GIF_STICKERS.map((gif, i) => (
-                      <button key={i} onClick={() => sendSticker(gif, "gif")} style={{ background: "none", border: "none", cursor: "pointer", padding: 0, borderRadius: "8px", overflow: "hidden" }}>
-                        <img src={gif} alt="gif" style={{ width: "100%", borderRadius: "8px" }} />
-                      </button>
-                    ))}
-                  </div>
+                  {drawerMode === "stickers" && (
+                    <>
+                      <div style={{ display: "flex", gap: "6px", padding: "10px 12px", overflowX: "auto", borderBottom: "1px solid " + borderColor }}>
+                        {STICKER_PACKS.map((pack, i) => (
+                          <button key={pack.id} onClick={() => setStickerPack(i)} style={{ padding: "6px 10px", borderRadius: "20px", border: "none", background: stickerPack === i ? "#25d366" : (darkMode ? "#334155" : "white"), color: stickerPack === i ? "white" : textColor, cursor: "pointer", fontSize: "20px", minWidth: "44px", textAlign: "center" }}>{pack.icon}</button>
+                        ))}
+                      </div>
+                      <div style={{ padding: "8px 12px", fontSize: "12px", opacity: "0.6", fontWeight: "600" }}>{STICKER_PACKS[stickerPack].name}</div>
+                      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(50px, 1fr))", gap: "4px", padding: "0 12px 12px" }}>
+                        {STICKER_PACKS[stickerPack].stickers.map((s, i) => (
+                          <button key={i} onClick={() => sendSticker(s, "emoji")} style={{ background: "none", border: "none", fontSize: "36px", cursor: "pointer", padding: "4px", borderRadius: "8px" }}>{s}</button>
+                        ))}
+                      </div>
+                    </>
+                  )}
+
+                  {drawerMode === "gifs" && (
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "8px", padding: "12px" }}>
+                      {GIF_STICKERS.map((gif, i) => (
+                        <button key={i} onClick={() => sendSticker(gif, "gif")} style={{ background: "none", border: "none", cursor: "pointer", padding: 0, borderRadius: "10px", overflow: "hidden" }}>
+                          <img src={gif} alt="gif" style={{ width: "100%", borderRadius: "10px", display: "block" }} />
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
 
               <div style={{ padding: isMobile ? "8px" : "12px 15px", background: darkMode ? "#1e293b" : "#f0f0f0", display: "flex", gap: "8px", alignItems: "center" }}>
-                <button onClick={() => { setShowStickers(!showStickers); setShowGifs(false); }} style={{ background: showStickers ? "#3b82f6" : "transparent", color: showStickers ? "white" : textColor, border: "none", borderRadius: "50%", width: "42px", height: "42px", cursor: "pointer", fontSize: "22px", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>😀</button>
+                <button onClick={() => setDrawerMode(drawerMode === "closed" ? "stickers" : "closed")} style={{ background: drawerMode !== "closed" ? "#3b82f6" : "transparent", color: drawerMode !== "closed" ? "white" : textColor, border: "none", borderRadius: "50%", width: "42px", height: "42px", cursor: "pointer", fontSize: "22px", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>😀</button>
                 <input placeholder="Type a message..." value={newMessage} onChange={(e) => setNewMessage(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); } }} style={{ flex: 1, padding: "12px 16px", borderRadius: "24px", border: "none", background: darkMode ? "#334155" : "white", color: textColor, fontSize: "15px", outline: "none", boxSizing: "border-box" }} />
                 <button onClick={sendMessage} style={{ background: "#25d366", color: "white", border: "none", borderRadius: "50%", width: "46px", height: "46px", cursor: "pointer", fontSize: "20px", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>➤</button>
               </div>
