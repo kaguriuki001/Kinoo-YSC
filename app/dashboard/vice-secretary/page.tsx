@@ -3,123 +3,100 @@ import { useState, useEffect } from "react";
 import { toast } from "sonner";
 
 export default function ViceSecretaryPage() {
-  const [activeTab, setActiveTab] = useState("overview");
-  const [stats, setStats] = useState({ members: 0, events: 0, transactions: 0, balance: 0, pending: 0 });
-  const [members, setMembers] = useState<any[]>([]);
-  const [events, setEvents] = useState<any[]>([]);
+  const [messages, setMessages] = useState<any[]>([]);
+  const [input, setInput] = useState("");
+  const [loading, setLoading] = useState(false);
   const [darkMode, setDarkMode] = useState(false);
-  const [aiQuery, setAiQuery] = useState("");
-  const [aiResponse, setAiResponse] = useState("");
+  const [stats, setStats] = useState({ members: 0, events: 0, balance: 0, pairs: 0 });
 
   useEffect(() => {
-    setDarkMode(localStorage.getItem('kinoo_theme') === 'dark');
-    fetchData();
+    setDarkMode(localStorage.getItem("kinoo_theme") === "dark");
+    loadStats();
+    setMessages([
+      { role: "assistant", text: "👋 Hello! I am your AI Strategist. Ask me anything about the group: member stats, finances, events, attendance, pairs, or strategy suggestions." }
+    ]);
   }, []);
 
-  const textColor = darkMode ? '#e2e8f0' : '#1e293b';
-  const bgColor = darkMode ? '#1e293b' : '#ffffff';
-  const borderColor = darkMode ? '#334155' : '#e5e7eb';
-  const cardStyle = { background: bgColor, padding: '20px', borderRadius: '12px', border: `1px solid ${borderColor}`, color: textColor };
-  const inputStyle = { width: '100%', padding: '12px', borderRadius: '8px', border: `1px solid ${borderColor}`, background: darkMode ? '#334155' : 'white', color: textColor, marginBottom: '10px' };
-
-  const fetchData = async () => {
-    try {
-      const [uRes, eRes, tRes] = await Promise.all([fetch("/api/users"), fetch("/api/events"), fetch("/api/transactions")]);
-      const users = await uRes.json();
-      const evts = await eRes.json();
-      const txs = await tRes.json();
-      if (Array.isArray(users)) { setMembers(users); setStats(p => ({ ...p, members: users.filter((u: any) => u.status === 'active').length, pending: users.filter((u: any) => u.status === 'pending').length })); }
-      if (Array.isArray(evts)) { setEvents(evts); setStats(p => ({ ...p, events: evts.length })); }
-      if (Array.isArray(txs)) {
-        const income = txs.filter((t: any) => t.type !== 'expense' && t.verified).reduce((s: number, t: any) => s + t.amount, 0);
-        const expenses = txs.filter((t: any) => t.type === 'expense').reduce((s: number, t: any) => s + t.amount, 0);
-        setStats(p => ({ ...p, transactions: txs.length, balance: income - expenses }));
+  const loadStats = () => {
+    fetch("/api/users?t=" + Date.now()).then(r => r.json()).then(d => { if (Array.isArray(d)) setStats(prev => ({ ...prev, members: d.filter((u: any) => u.status === "active").length })); }).catch(() => {});
+    fetch("/api/events?t=" + Date.now()).then(r => r.json()).then(d => { if (Array.isArray(d)) setStats(prev => ({ ...prev, events: d.length })); }).catch(() => {});
+    fetch("/api/transactions?t=" + Date.now()).then(r => r.json()).then(d => {
+      if (Array.isArray(d)) {
+        const income = d.filter((t: any) => t.type !== "expense" && t.verified).reduce((s: number, t: any) => s + (t.amount || 0), 0);
+        const expenses = d.filter((t: any) => t.type === "expense").reduce((s: number, t: any) => s + (t.amount || 0), 0);
+        setStats(prev => ({ ...prev, balance: income - expenses }));
       }
-    } catch (e) {}
+    }).catch(() => {});
+    fetch("/api/pairs?t=" + Date.now()).then(r => r.json()).then(d => { if (Array.isArray(d)) setStats(prev => ({ ...prev, pairs: d.length })); }).catch(() => {});
   };
 
-  const askAI = () => {
-    if (!aiQuery.trim()) return;
-    const q = aiQuery.toLowerCase();
-    let response = "";
-
-    if (q.includes('inactive') || q.includes('attendance')) {
-      response = `Based on current data: ${stats.members} active members. Consider reaching out to members who haven't contributed this month.`;
-    } else if (q.includes('balance') || q.includes('money') || q.includes('finance')) {
-      response = `Current balance: KES ${stats.balance.toLocaleString()}. ${stats.transactions} total transactions.`;
-    } else if (q.includes('event') || q.includes('plan')) {
-      response = `${stats.events} events scheduled. Suggest a planning meeting 3 weeks before each event.`;
-    } else if (q.includes('growth') || q.includes('strategy')) {
-      response = `Focus areas:\n1. Member retention (currently ${stats.members} active)\n2. Event engagement (${stats.events} planned)\n3. Financial transparency (KES ${stats.balance.toLocaleString()})`;
-    } else {
-      response = `Analysis:\n• ${stats.members} active members\n• ${stats.pending} pending approvals\n• ${stats.events} upcoming events\n• KES ${stats.balance.toLocaleString()} balance\n\nSuggestions:\n• Increase member engagement\n• Plan quarterly events\n• Review financial targets`;
-    }
-    setAiResponse(response);
+  const sendMessage = async () => {
+    if (!input.trim() || loading) return;
+    const userMsg = { role: "user", text: input };
+    setMessages(prev => [...prev, userMsg]);
+    const question = input;
+    setInput("");
+    setLoading(true);
+    try {
+      const res = await fetch("/api/ai-query", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ query: question })
+      });
+      const data = await res.json();
+      setMessages(prev => [...prev, { role: "assistant", text: data.answer || data.error || "No response" }]);
+    } catch (err) {
+      setMessages(prev => [...prev, { role: "assistant", text: "Error connecting to AI." }]);
+    } finally { setLoading(false); }
   };
 
-  const tabs = [
-    { id: 'overview', label: '📊 Overview' },
-    { id: 'analytics', label: '📈 Analytics' },
-    { id: 'ai', label: '🧠 AI Strategist' },
-  ];
+  const quickAsk = (q: string) => { setInput(q); };
+
+  const textColor = darkMode ? "#e2e8f0" : "#1e293b";
+  const cardStyle = { background: darkMode ? "#1e293b" : "white", padding: "20px", borderRadius: "12px", border: "1px solid " + (darkMode ? "#334155" : "#e5e7eb"), color: textColor, marginBottom: "15px" };
 
   return (
     <div style={{ color: textColor }}>
-      <h1 style={{ fontSize: '28px', marginBottom: '20px' }}>🧠 Strategist Console</h1>
+      <h1 style={{ fontSize: "28px", marginBottom: "20px" }}>🧠 Vice Secretary — AI Strategist</h1>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '15px', marginBottom: '20px' }}>
-        <div style={{ ...cardStyle, textAlign: 'center' }}><p style={{ fontSize: '28px', fontWeight: 'bold', color: '#3b82f6' }}>{stats.members}</p><p style={{ opacity: '0.7', fontSize: '13px' }}>Members</p></div>
-        <div style={{ ...cardStyle, textAlign: 'center' }}><p style={{ fontSize: '28px', fontWeight: 'bold', color: '#f59e0b' }}>{stats.events}</p><p style={{ opacity: '0.7', fontSize: '13px' }}>Events</p></div>
-        <div style={{ ...cardStyle, textAlign: 'center' }}><p style={{ fontSize: '28px', fontWeight: 'bold', color: '#10b981' }}>KES {stats.balance.toLocaleString()}</p><p style={{ opacity: '0.7', fontSize: '13px' }}>Balance</p></div>
-        <div style={{ ...cardStyle, textAlign: 'center' }}><p style={{ fontSize: '28px', fontWeight: 'bold', color: '#7c3aed' }}>{stats.pending}</p><p style={{ opacity: '0.7', fontSize: '13px' }}>Pending</p></div>
-      </div>
-
-      <div style={{ display: 'flex', gap: '5px', marginBottom: '20px', flexWrap: 'wrap' }}>
-        {tabs.map(t => (<button key={t.id} onClick={() => setActiveTab(t.id)} style={{ padding: '10px 20px', border: 'none', borderRadius: '8px', cursor: 'pointer', background: activeTab === t.id ? '#7c3aed' : darkMode ? '#334155' : '#e5e7eb', color: activeTab === t.id ? 'white' : textColor, fontSize: '14px' }}>{t.label}</button>))}
-      </div>
-
-      {activeTab === 'overview' && (
-        <div style={cardStyle}>
-          <h2 style={{ marginBottom: '15px' }}>Group Health Summary</h2>
-          <p style={{ marginBottom: '10px' }}>📊 Active members: <strong>{stats.members}</strong></p>
-          <p style={{ marginBottom: '10px' }}>⏳ Pending approvals: <strong>{stats.pending}</strong></p>
-          <p style={{ marginBottom: '10px' }}>📅 Events planned: <strong>{stats.events}</strong></p>
-          <p style={{ marginBottom: '10px' }}>💰 Financial balance: <strong>KES {stats.balance.toLocaleString()}</strong></p>
-        </div>
-      )}
-
-      {activeTab === 'analytics' && (
-        <div style={cardStyle}>
-          <h2 style={{ marginBottom: '15px' }}>Group Analytics</h2>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '15px' }}>
-            <div style={{ padding: '15px', background: darkMode ? '#334155' : '#eff6ff', borderRadius: '8px' }}>
-              <p style={{ fontSize: '13px', opacity: '0.7' }}>Member Engagement</p>
-              <p style={{ fontSize: '24px', fontWeight: 'bold', color: '#3b82f6' }}>{stats.members > 0 ? Math.round((stats.members / (stats.members + stats.pending)) * 100) : 0}%</p>
-            </div>
-            <div style={{ padding: '15px', background: darkMode ? '#334155' : '#f0fdf4', borderRadius: '8px' }}>
-              <p style={{ fontSize: '13px', opacity: '0.7' }}>Financial Health</p>
-              <p style={{ fontSize: '24px', fontWeight: 'bold', color: '#10b981' }}>KES {stats.balance.toLocaleString()}</p>
-            </div>
-            <div style={{ padding: '15px', background: darkMode ? '#334155' : '#fff7ed', borderRadius: '8px' }}>
-              <p style={{ fontSize: '13px', opacity: '0.7' }}>Event Activity</p>
-              <p style={{ fontSize: '24px', fontWeight: 'bold', color: '#f59e0b' }}>{stats.events}</p>
-            </div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(130px, 1fr))", gap: "12px", marginBottom: "20px" }}>
+        {[
+          { label: "Members", value: stats.members, color: "#3b82f6", icon: "👥" },
+          { label: "Events", value: stats.events, color: "#f59e0b", icon: "📅" },
+          { label: "Pairs", value: stats.pairs, color: "#8b5cf6", icon: "🤝" },
+          { label: "Balance", value: "KES " + stats.balance.toLocaleString(), color: "#10b981", icon: "💰" }
+        ].map(c => (
+          <div key={c.label} style={{ ...cardStyle, marginBottom: 0, textAlign: "center", padding: "15px" }}>
+            <p style={{ fontSize: "24px", marginBottom: "3px" }}>{c.icon}</p>
+            <p style={{ fontSize: "18px", fontWeight: "bold", color: c.color }}>{c.value}</p>
+            <p style={{ fontSize: "12px", opacity: "0.7" }}>{c.label}</p>
           </div>
-        </div>
-      )}
+        ))}
+      </div>
 
-      {activeTab === 'ai' && (
-        <div style={cardStyle}>
-          <h2 style={{ marginBottom: '15px' }}>🧠 AI Strategist</h2>
-          <textarea placeholder="Ask: 'How many members are active?' or 'Financial health?' or 'Growth strategy?'" value={aiQuery} onChange={(e) => setAiQuery(e.target.value)} style={{ ...inputStyle, minHeight: '80px' }} />
-          <button onClick={askAI} style={{ background: '#7c3aed', color: 'white', border: 'none', padding: '12px 24px', borderRadius: '8px', cursor: 'pointer', fontWeight: '600', marginBottom: '15px' }}>🤖 Ask AI</button>
-          {aiResponse && (
-            <div style={{ padding: '15px', background: darkMode ? '#334155' : '#faf5ff', borderRadius: '8px', whiteSpace: 'pre-line', lineHeight: '1.7' }}>
-              {aiResponse}
+      <div style={cardStyle}>
+        <div style={{ height: "400px", overflowY: "auto", marginBottom: "15px", padding: "10px", background: darkMode ? "#0f172a" : "#f8fafc", borderRadius: "10px" }}>
+          {messages.map((m, i) => (
+            <div key={i} style={{ display: "flex", justifyContent: m.role === "user" ? "flex-end" : "flex-start", marginBottom: "10px" }}>
+              <div style={{ maxWidth: "80%", background: m.role === "user" ? "#3b82f6" : (darkMode ? "#334155" : "white"), color: m.role === "user" ? "white" : textColor, padding: "10px 14px", borderRadius: "12px", fontSize: "14px", lineHeight: "1.6", whiteSpace: "pre-wrap", boxShadow: "0 1px 2px rgba(0,0,0,0.05)" }}>
+                {m.text}
+              </div>
             </div>
-          )}
+          ))}
+          {loading && <div style={{ textAlign: "center", opacity: "0.6", fontSize: "13px" }}>Thinking...</div>}
         </div>
-      )}
+
+        <div style={{ display: "flex", gap: "8px", marginBottom: "12px", flexWrap: "wrap" }}>
+          {["How many members?", "Financial status?", "Upcoming events?", "Suggest strategy"].map(q => (
+            <button key={q} onClick={() => quickAsk(q)} style={{ background: darkMode ? "#334155" : "#e5e7eb", color: textColor, border: "none", padding: "6px 12px", borderRadius: "20px", cursor: "pointer", fontSize: "12px" }}>{q}</button>
+          ))}
+        </div>
+
+        <div style={{ display: "flex", gap: "8px" }}>
+          <input value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") sendMessage(); }} placeholder="Ask anything..." style={{ flex: 1, padding: "12px 16px", borderRadius: "24px", border: "1px solid " + (darkMode ? "#334155" : "#e5e7eb"), background: darkMode ? "#334155" : "white", color: textColor, fontSize: "14px", outline: "none", boxSizing: "border-box" }} />
+          <button onClick={sendMessage} disabled={loading} style={{ background: "#8b5cf6", color: "white", border: "none", padding: "0 20px", borderRadius: "24px", cursor: "pointer", fontWeight: "600", opacity: loading ? 0.6 : 1 }}>Send</button>
+        </div>
+      </div>
     </div>
   );
 }
