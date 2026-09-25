@@ -39,9 +39,10 @@ export async function POST(req: NextRequest) {
     if (!db) throw new Error("DB failed");
     const updateField = "documents." + docType;
     const updateStatus = "documents." + docType + "Status";
+    const updateTime = "documents." + docType + "UploadedAt";
     await db.collection("users").updateOne(
       { _id: new mongoose.Types.ObjectId(userId) },
-      { $set: { [updateField]: docData, [updateStatus]: "pending" } }
+      { $set: { [updateField]: docData, [updateStatus]: "pending", [updateTime]: new Date() } }
     );
     return NextResponse.json({ message: "Document uploaded", status: "pending" });
   } catch (error: any) {
@@ -59,9 +60,10 @@ export async function PATCH(req: NextRequest) {
     if (!db) throw new Error("DB failed");
     const updateStatus = "documents." + docType + "Status";
     const updateApprover = "documents." + docType + "ApprovedBy";
+    const updateApprovedAt = "documents." + docType + "ApprovedAt";
     await db.collection("users").updateOne(
       { _id: new mongoose.Types.ObjectId(userId) },
-      { $set: { [updateStatus]: status, [updateApprover]: approvedBy } }
+      { $set: { [updateStatus]: status, [updateApprover]: approvedBy, [updateApprovedAt]: new Date() } }
     );
     return NextResponse.json({ message: "Document " + status });
   } catch (error: any) {

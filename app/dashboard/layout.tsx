@@ -78,6 +78,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     { href: '/dashboard/profile', label: 'Profile', icon: '👤', show: true },
     { href: '/dashboard/pairs', label: 'Pairs', icon: '🤝', show: isAdmin },
     { href: '/dashboard/father', label: 'Father', icon: '👑', show: isAdmin },
+    { href: '/dashboard/father/documents', label: 'Doc Approvals', icon: '📋', show: isAdmin },
     { href: '/dashboard/moderator', label: 'Moderator', icon: '🛡️', show: isAdmin },
     { href: '/dashboard/secretary', label: 'Secretary', icon: '📋', show: isAdmin },
     { href: '/dashboard/treasurer', label: 'Treasurer', icon: '💰', show: isAdmin },
