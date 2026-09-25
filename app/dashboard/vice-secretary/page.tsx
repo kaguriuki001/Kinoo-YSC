@@ -1,6 +1,5 @@
 "use client";
 import { useState, useEffect } from "react";
-import { toast } from "sonner";
 
 export default function ViceSecretaryPage() {
   const [messages, setMessages] = useState<any[]>([]);
@@ -13,7 +12,7 @@ export default function ViceSecretaryPage() {
     setDarkMode(localStorage.getItem("kinoo_theme") === "dark");
     loadStats();
     setMessages([
-      { role: "assistant", text: "👋 Hello! I am your AI Strategist. Ask me anything about the group: member stats, finances, events, attendance, pairs, or strategy suggestions." }
+      { role: "assistant", title: "👋 Hello!", lines: ["I am your AI Strategist.", "Ask me anything about members, finances, events, attendance, or strategies."] }
     ]);
   }, []);
 
@@ -32,8 +31,7 @@ export default function ViceSecretaryPage() {
 
   const sendMessage = async () => {
     if (!input.trim() || loading) return;
-    const userMsg = { role: "user", text: input };
-    setMessages(prev => [...prev, userMsg]);
+    setMessages(prev => [...prev, { role: "user", lines: [input] }]);
     const question = input;
     setInput("");
     setLoading(true);
@@ -44,9 +42,13 @@ export default function ViceSecretaryPage() {
         body: JSON.stringify({ query: question })
       });
       const data = await res.json();
-      setMessages(prev => [...prev, { role: "assistant", text: data.answer || data.error || "No response" }]);
+      if (data.lines) {
+        setMessages(prev => [...prev, { role: "assistant", title: data.title, lines: data.lines }]);
+      } else {
+        setMessages(prev => [...prev, { role: "assistant", lines: [data.answer || data.error || "No response"] }]);
+      }
     } catch (err) {
-      setMessages(prev => [...prev, { role: "assistant", text: "Error connecting to AI." }]);
+      setMessages(prev => [...prev, { role: "assistant", lines: ["Error connecting to AI."] }]);
     } finally { setLoading(false); }
   };
 
@@ -75,11 +77,23 @@ export default function ViceSecretaryPage() {
       </div>
 
       <div style={cardStyle}>
-        <div style={{ height: "400px", overflowY: "auto", marginBottom: "15px", padding: "10px", background: darkMode ? "#0f172a" : "#f8fafc", borderRadius: "10px" }}>
+        <div style={{ height: "400px", overflowY: "auto", marginBottom: "15px", padding: "15px", background: darkMode ? "#0f172a" : "#f8fafc", borderRadius: "10px" }}>
           {messages.map((m, i) => (
-            <div key={i} style={{ display: "flex", justifyContent: m.role === "user" ? "flex-end" : "flex-start", marginBottom: "10px" }}>
-              <div style={{ maxWidth: "80%", background: m.role === "user" ? "#3b82f6" : (darkMode ? "#334155" : "white"), color: m.role === "user" ? "white" : textColor, padding: "10px 14px", borderRadius: "12px", fontSize: "14px", lineHeight: "1.6", whiteSpace: "pre-wrap", boxShadow: "0 1px 2px rgba(0,0,0,0.05)" }}>
-                {m.text}
+            <div key={i} style={{ display: "flex", justifyContent: m.role === "user" ? "flex-end" : "flex-start", marginBottom: "12px" }}>
+              <div style={{
+                maxWidth: "85%",
+                background: m.role === "user" ? "#3b82f6" : (darkMode ? "#1e293b" : "white"),
+                color: m.role === "user" ? "white" : textColor,
+                padding: "12px 16px",
+                borderRadius: "12px",
+                fontSize: "14px",
+                lineHeight: "1.7",
+                boxShadow: "0 1px 3px rgba(0,0,0,0.08)"
+              }}>
+                {m.title && <p style={{ fontWeight: "bold", marginBottom: "8px", fontSize: "15px" }}>{m.title}</p>}
+                {m.lines && m.lines.map((line: string, j: number) => (
+                  <p key={j} style={{ margin: "4px 0" }}>{line}</p>
+                ))}
               </div>
             </div>
           ))}
@@ -88,7 +102,7 @@ export default function ViceSecretaryPage() {
 
         <div style={{ display: "flex", gap: "8px", marginBottom: "12px", flexWrap: "wrap" }}>
           {["How many members?", "Financial status?", "Upcoming events?", "Suggest strategy"].map(q => (
-            <button key={q} onClick={() => quickAsk(q)} style={{ background: darkMode ? "#334155" : "#e5e7eb", color: textColor, border: "none", padding: "6px 12px", borderRadius: "20px", cursor: "pointer", fontSize: "12px" }}>{q}</button>
+            <button key={q} onClick={() => quickAsk(q)} style={{ background: darkMode ? "#334155" : "#e5e7eb", color: textColor, border: "none", padding: "8px 14px", borderRadius: "20px", cursor: "pointer", fontSize: "12px" }}>{q}</button>
           ))}
         </div>
 

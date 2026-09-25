@@ -18,70 +18,74 @@ export async function POST(req: NextRequest) {
     if (!db) throw new Error("DB failed");
 
     const q = query.toLowerCase();
-    let answer = "";
+    const title = "Here is what I found:";
+    const lines: string[] = [];
 
-    // Members stats
     if (q.includes("member") || q.includes("how many")) {
       const total = await db.collection("users").countDocuments();
       const active = await db.collection("users").countDocuments({ status: "active" });
       const pending = await db.collection("users").countDocuments({ status: "pending" });
-      answer += `You have ${total} total members. ${active} active and ${pending} pending approval.\n\n`;
+      lines.push("👥 Total members: " + total);
+      lines.push("✅ Active: " + active);
+      lines.push("⏳ Pending: " + pending);
     }
 
-    // Financial stats
     if (q.includes("money") || q.includes("balance") || q.includes("finance") || q.includes("income") || q.includes("expense")) {
       const txs = await db.collection("transactions").find({}).toArray();
       const income = txs.filter((t: any) => t.type !== "expense" && t.verified).reduce((s: number, t: any) => s + (t.amount || 0), 0);
       const expenses = txs.filter((t: any) => t.type === "expense").reduce((s: number, t: any) => s + (t.amount || 0), 0);
-      answer += `Financial status:\n• Total income: KES ${income.toLocaleString()}\n• Total expenses: KES ${expenses.toLocaleString()}\n• Balance: KES ${(income - expenses).toLocaleString()}\n\n`;
+      lines.push("💰 Income: KES " + income.toLocaleString());
+      lines.push("💸 Expenses: KES " + expenses.toLocaleString());
+      lines.push("📊 Balance: KES " + (income - expenses).toLocaleString());
     }
 
-    // Event stats
     if (q.includes("event")) {
       const events = await db.collection("events").find({}).toArray();
       const upcoming = events.filter((e: any) => new Date(e.date) >= new Date());
-      answer += `Events:\n• Total: ${events.length}\n• Upcoming: ${upcoming.length}\n`;
+      lines.push("📅 Total events: " + events.length);
+      lines.push("🎯 Upcoming: " + upcoming.length);
       if (upcoming.length > 0) {
-        answer += "• Next: " + upcoming[0].title + " on " + new Date(upcoming[0].date).toDateString() + "\n";
+        lines.push("🔜 Next: " + upcoming[0].title + " on " + new Date(upcoming[0].date).toDateString());
       }
-      answer += "\n";
     }
 
-    // Attendance stats
     if (q.includes("attendance") || q.includes("check-in")) {
       const attendance = await db.collection("attendance").find({}).toArray();
-      answer += `Attendance: ${attendance.length} total check-ins recorded.\n\n`;
+      lines.push("✅ Total check-ins: " + attendance.length);
     }
 
-    // Frago stats
     if (q.includes("frago") || q.includes("trip")) {
       const fragos = await db.collection("fragos").find({}).toArray();
-      answer += `FRAGOs: ${fragos.length} recorded.\n\n`;
+      lines.push("🎯 Total FRAGOs: " + fragos.length);
     }
 
-    // Pair stats
     if (q.includes("pair") || q.includes("jozi")) {
       const pairs = await db.collection("pairs").find({}).toArray();
       const unpaired = await db.collection("users").countDocuments({ status: "active", pairId: null });
-      answer += `Pair system: ${pairs.length} pairs formed. ${unpaired} active members not yet paired.\n\n`;
+      lines.push("🤝 Pairs formed: " + pairs.length);
+      lines.push("⚠️ Unpaired members: " + unpaired);
     }
 
-    // Suggestions / strategy
     if (q.includes("suggest") || q.includes("advice") || q.includes("recommend") || q.includes("strategy")) {
       const active = await db.collection("users").countDocuments({ status: "active" });
       const txs = await db.collection("transactions").find({ verified: true }).toArray();
       const income = txs.filter((t: any) => t.type !== "expense").reduce((s: number, t: any) => s + (t.amount || 0), 0);
-      answer += "Strategic recommendations:\\n";
-      if (active < 30) answer += "• Growth: Focus on recruitment drives — you have " + active + " active members.\\n";
-      if (income < 50000) answer += "• Finance: Increase contributions. Current income is KES " + income.toLocaleString() + ".\\n";
-      answer += "• Engagement: Schedule weekly check-in reminders.\\n• Events: Plan 2-3 activities per quarter to keep members active.\\n";
+      lines.push("💡 Strategic recommendations:");
+      if (active < 30) lines.push("📈 Growth: You have " + active + " active members — start a recruitment drive.");
+      if (income < 50000) lines.push("💰 Finance: Income is KES " + income.toLocaleString() + " — encourage contributions.");
+      lines.push("🔔 Engagement: Send weekly check-in reminders.");
+      lines.push("📅 Events: Plan 2-3 activities per quarter.");
     }
 
-    if (!answer) {
-      answer = "I did not understand the question. Try asking:\\n• How many members do we have?\\n• What is our financial status?\\n• Show me upcoming events\\n• What is our attendance?\\n• Suggest strategies";
+    if (lines.length === 0) {
+      lines.push("I did not understand. Try asking:");
+      lines.push("• How many members do we have?");
+      lines.push("• What is our financial status?");
+      lines.push("• Show me upcoming events");
+      lines.push("• Suggest strategies");
     }
 
-    return NextResponse.json({ answer });
+    return NextResponse.json({ title, lines });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
