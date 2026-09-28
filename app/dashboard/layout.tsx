@@ -90,6 +90,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     { href: '/dashboard/frago', label: 'FRAGO', icon: '🎯', show: isAdmin },
     { href: '/minutes.html', label: 'Minutes', icon: '📝', show: isAdmin, external: true },
     { href: '/dashboard/settings', label: 'Settings', icon: '⚙️', show: isAdmin },
+    { href: '/dashboard/settings/doc-requirements', label: 'Required Docs', icon: '📋', show: isAdmin },
   ];
 
   const visibleConsoles = allConsoles.filter((c: any) => c.show);
