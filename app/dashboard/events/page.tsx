@@ -116,7 +116,6 @@ export default function EventsPage() {
             ) : null}
             <button onClick={() => { setSelectedEvent(e); loadFeedback(e._id); }} style={{ background: "#3b82f6", color: "white", border: "none", padding: "10px 20px", borderRadius: "8px", cursor: "pointer", fontSize: "13px", fontWeight: "600" }}>👁️ View Details</button>
             <button onClick={() => window.open("/api/attendance-pdf?eventId=" + e._id, "_blank")} style={{ background: "#8b5cf6", color: "white", border: "none", padding: "10px 20px", borderRadius: "8px", cursor: "pointer", fontSize: "13px", fontWeight: "600" }}>📄 Attendance PDF</button>
-            <button onClick={() => window.open("/api/attendance-pdf?eventId=" + e._id, "_blank")} style={{ background: "#8b5cf6", color: "white", border: "none", padding: "10px 20px", borderRadius: "8px", cursor: "pointer", fontSize: "13px", fontWeight: "600" }}>📄 Attendance PDF</button>
           </div>
         </div>
       ))}

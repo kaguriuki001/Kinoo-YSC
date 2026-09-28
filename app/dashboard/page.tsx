@@ -15,20 +15,20 @@ export default function Dashboard() {
     const saved = localStorage.getItem('kinoo_user');
     if (saved) { try { setUser(JSON.parse(saved)); } catch (e) {} }
 
-    fetch("/api/auth/session", { credentials: "include", cache: "no-store" })
-      .then(r => r.json())
-      .then(d => {
-        if (d?.user) {
-          setUser(d.user);
-          localStorage.setItem('kinoo_user', JSON.stringify(d.user));
-          const uid = d.user.id || d.user._id;
+    const cachedUser = localStorage.getItem('kinoo_user');
+    if (cachedUser) {
+      try {
+        const u = JSON.parse(cachedUser);
+        setUser(u);
+        const uid = u.id || u._id;
+        if (uid) {
           fetch(`/api/check-in?userId=${uid}&t=${Date.now()}`)
             .then(r => r.json())
             .then(ci => setCheckInStatus(ci))
             .catch(() => {});
         }
-      })
-      .catch(() => {});
+      } catch (e) {}
+    }
 
     fetch("/api/users?t=" + Date.now()).then(r => r.json()).then(d => { if (Array.isArray(d)) setStats(p => ({ ...p, members: d.filter((u: any) => u.status === 'active').length })); }).catch(() => {});
     fetch("/api/events?t=" + Date.now()).then(r => r.json()).then(d => { if (Array.isArray(d)) { setEvents(d.slice(0, 3)); setStats(p => ({ ...p, events: d.length })); } }).catch(() => {});
