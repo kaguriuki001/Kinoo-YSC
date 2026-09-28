@@ -32,11 +32,11 @@ export const authOptions: any = {
           }
 
           if (!user) {
-            user = await User.findOne({ fullName: { $regex: new RegExp(`^${searchValue}$`, 'i') } });
+            user = await User.findOne({ fullName: { $regex: new RegExp("^" + searchValue + "$", "i") } });
           }
 
           if (!user) {
-            user = await User.findOne({ fullName: { $regex: new RegExp(searchValue, 'i') } });
+            user = await User.findOne({ fullName: { $regex: new RegExp(searchValue, "i") } });
           }
 
           if (!user) return null;
@@ -62,7 +62,7 @@ export const authOptions: any = {
     async jwt({ token, user }: any) {
       if (user) {
         token.id = user.id;
-        token.roles = user.roles || ['member'];
+        token.roles = user.roles || ["member"];
         token.phone = user.phone;
         token.name = user.name;
         token.outstation = user.outstation || null;
@@ -85,15 +85,6 @@ export const authOptions: any = {
   session: {
     strategy: "jwt",
     maxAge: 30 * 24 * 60 * 60
-  },
-    callbackUrl: {
-      name: "__Secure-next-auth.callback-url",
-      options: { sameSite: "lax", path: "/", secure: true }
-    },
-    csrfToken: {
-      name: "__Host-next-auth.csrf-token",
-      options: { httpOnly: true, sameSite: "lax", path: "/", secure: true }
-    }
   },
   pages: { signIn: "/" }
 };
