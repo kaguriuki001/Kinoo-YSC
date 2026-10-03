@@ -13,7 +13,8 @@ const DEFAULT_HIERARCHY = {
   diocese: "Catholic Diocese of Nairobi",
   deanery: "Kinoo Deanery",
   parish: "Kinoo Parish",
-  outstations: ["Uthiru", "Kagondo", "Kinoo"]
+  outstations: ["Uthiru", "Kagondo", "Kinoo"],
+  council: [] as { role: string; name: string; outstation: string }[]
 };
 
 export async function GET() {
@@ -21,7 +22,14 @@ export async function GET() {
     const db = await getDB();
     if (!db) throw new Error("DB unavailable");
     const doc = await db.collection("settings").findOne({ key: "scope_hierarchy" });
-    return NextResponse.json({ hierarchy: doc?.hierarchy || DEFAULT_HIERARCHY });
+    const stored = doc?.hierarchy || {};
+    return NextResponse.json({
+      hierarchy: {
+        ...DEFAULT_HIERARCHY,
+        ...stored,
+        council: stored.council || []
+      }
+    });
   } catch (e: any) {
     return NextResponse.json({ error: e.message }, { status: 500 });
   }
