@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import mongoose from "mongoose";
-import { getCallerScope, filterInScope } from "@/lib/scope";
 
 async function getDB() {
   const MONGODB_URI = process.env.MONGODB_URI || "";
@@ -27,8 +26,7 @@ export async function GET() {
       logistics: e.logistics || {},
       createdAt: e.createdAt
     }));
-    const __scope = await getCallerScope();
-    return NextResponse.json(filterInScope(result as any[], __scope));
+    return NextResponse.json(result);
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
