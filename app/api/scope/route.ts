@@ -9,12 +9,12 @@ async function getDB() {
   return mongoose.connection.db;
 }
 
-const DEFAULT_HIERARCHY = {
+const DEFAULTS = {
   diocese: "Catholic Diocese of Nairobi",
   deanery: "Kinoo Deanery",
   parish: "Kinoo Parish",
   outstations: ["Uthiru", "Kagondo", "Kinoo"],
-  council: [] as { role: string; name: string; outstation: string }[]
+  council: []
 };
 
 export async function GET() {
@@ -22,13 +22,9 @@ export async function GET() {
     const db = await getDB();
     if (!db) throw new Error("DB unavailable");
     const doc = await db.collection("settings").findOne({ key: "scope_hierarchy" });
-    const stored = doc?.hierarchy || {};
+    const stored = (doc && doc.hierarchy) || {};
     return NextResponse.json({
-      hierarchy: {
-        ...DEFAULT_HIERARCHY,
-        ...stored,
-        council: stored.council || []
-      }
+      hierarchy: Object.assign({}, DEFAULTS, stored, { council: stored.council || [] })
     });
   } catch (e: any) {
     return NextResponse.json({ error: e.message }, { status: 500 });
@@ -37,15 +33,16 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   try {
-    const { hierarchy } = await req.json();
+    const body = await req.json();
+    const hierarchy = body.hierarchy;
     if (!hierarchy || typeof hierarchy !== "object") {
-      return NextResponse.json({ error: "hierarchy object required" }, { status: 400 });
+      return NextResponse.json({ error: "hierarchy required" }, { status: 400 });
     }
     const db = await getDB();
     if (!db) throw new Error("DB unavailable");
     await db.collection("settings").updateOne(
       { key: "scope_hierarchy" },
-      { $set: { key: "scope_hierarchy", hierarchy, updatedAt: new Date() } },
+      { $set: { key: "scope_hierarchy", hierarchy: hierarchy, updatedAt: new Date() } },
       { upsert: true }
     );
     return NextResponse.json({ message: "Saved" });
