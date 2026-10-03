@@ -90,6 +90,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     { href: '/minutes.html', label: 'Minutes', icon: '📝', show: isAdmin, external: true },
     { divider: 'SETTINGS', show: isAdmin },
     { href: '/dashboard/settings', label: 'Settings', icon: '⚙️', show: isAdmin },
+    { href: '/dashboard/settings/scope', label: 'Structure', icon: '🗂️', show: isAdmin },
   ];;
 
   const visibleConsoles = allConsoles.filter((c: any) => c.show);
