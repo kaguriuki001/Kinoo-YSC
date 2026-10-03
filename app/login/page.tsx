@@ -1,6 +1,5 @@
 "use client";
 import { useState } from "react";
-import { signIn } from "next-auth/react";
 import Link from "next/link";
 import { toast } from "sonner";
 
@@ -34,15 +33,33 @@ export default function Login() {
     if (!identifier || !password) { toast.error("Fill all fields"); return; }
     setLoading(true);
     try {
-      const res = await signIn("credentials", { identifier: identifier.trim(), phone: identifier.trim(), password, redirect: false });
-      if (res?.ok) {
-        toast.success("Welcome to Kinoo YSC!");
-        try {
-          const sessionRes = await fetch("/api/auth/session", { credentials: "include" });
-          const sessionData = await sessionRes.json();
-          if (sessionData?.user) localStorage.setItem('kinoo_user', JSON.stringify(sessionData.user));
-        } catch (e) {}
-        window.location.href = "/dashboard";
+      const csrfRes = await fetch("/api/auth/csrf", { credentials: "include" });
+      const csrfData = await csrfRes.json();
+      const body = new URLSearchParams();
+      body.append("identifier", identifier.trim());
+      body.append("phone", identifier.trim());
+      body.append("password", password);
+      body.append("csrfToken", csrfData.csrfToken);
+      body.append("callbackUrl", window.location.origin + "/dashboard");
+      body.append("json", "true");
+      const res = await fetch("/api/auth/callback/credentials", {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: body.toString(),
+        credentials: "include",
+        redirect: "manual"
+      });
+      if (res.status === 200 || res.status === 302 || res.status === 0) {
+        const sessionRes = await fetch("/api/auth/session", { credentials: "include" });
+        const sessionData = await sessionRes.json();
+        if (sessionData?.user) {
+          localStorage.setItem('kinoo_user', JSON.stringify(sessionData.user));
+          toast.success("Welcome to Kinoo YSC!");
+          window.location.href = "/dashboard";
+        } else {
+          toast.error("Session failed — try again");
+          setLoading(false);
+        }
       } else {
         toast.error("Invalid credentials. Check phone/name and password.");
         setLoading(false);
