@@ -69,33 +69,35 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const isAdmin = adminKeywords.some(k => roleStr.includes(k));
 
   const allConsoles = [
-    { href: '/dashboard/check-in', label: 'Check-in', icon: '✅', show: true },
     { href: '/dashboard', label: 'Dashboard', icon: '🏠', show: true },
-    { href: '/dashboard/events', label: 'Events', icon: '📅', show: true },
     { href: '/dashboard/messages', label: 'Messages', icon: '💬', show: true },
-    { href: '/dashboard/father/documents', label: 'Doc Approvals', icon: '📋', show: isAdmin },
+    { href: '/dashboard/check-in', label: 'Check-in', icon: '✅', show: true },
+    { href: '/dashboard/events', label: 'Events', icon: '📅', show: true },
+    { href: '/dashboard/notifications', label: 'Alerts', icon: '🔔', show: true, badge: unreadCount },
+    { divider: 'ADMIN CONSOLES', show: isAdmin },
     { href: '/dashboard/father', label: 'Father', icon: '👑', show: isAdmin },
-    { href: '/dashboard/frago', label: 'FRAGO', icon: '🎯', show: isAdmin },
-    { href: '/dashboard/liturgist', label: 'Liturgist', icon: '✝️', show: isAdmin },
-    { href: '/minutes.html', label: 'Minutes', icon: '📝', show: isAdmin, external: true },
     { href: '/dashboard/moderator', label: 'Moderator', icon: '🛡️', show: isAdmin },
-    { href: '/dashboard/organizing-secretary', label: 'Organising Sec', icon: '🚌', show: isAdmin },
-    { href: '/dashboard/pairs', label: 'Pairs', icon: '🤝', show: isAdmin },
-    { href: '/dashboard/patron-matron', label: 'Patron/Matron', icon: '👵', show: isAdmin },
-    { href: '/dashboard/settings/doc-requirements', label: 'Required Docs', icon: '📋', show: isAdmin },
     { href: '/dashboard/secretary', label: 'Secretary', icon: '📋', show: isAdmin },
-    { href: '/dashboard/settings', label: 'Settings', icon: '⚙️', show: isAdmin },
     { href: '/dashboard/treasurer', label: 'Treasurer', icon: '💰', show: isAdmin },
-    { href: '/dashboard/vice-moderator', label: 'Vice Moderator', icon: '⚖️', show: isAdmin },
+    { href: '/dashboard/organizing-secretary', label: 'Organising Sec', icon: '🚌', show: isAdmin },
     { href: '/dashboard/vice-secretary', label: 'Vice Secretary', icon: '🧠', show: isAdmin },
-  ];
+    { href: '/dashboard/vice-moderator', label: 'Vice Moderator', icon: '⚖️', show: isAdmin },
+    { href: '/dashboard/liturgist', label: 'Liturgist', icon: '✝️', show: isAdmin },
+    { href: '/dashboard/patron-matron', label: 'Patron/Matron', icon: '👵', show: isAdmin },
+    { href: '/dashboard/frago', label: 'FRAGO', icon: '🎯', show: isAdmin },
+    { href: '/dashboard/pairs', label: 'Pairs', icon: '🤝', show: isAdmin },
+    { href: '/dashboard/father/documents', label: 'Doc Approvals', icon: '📋', show: isAdmin },
+    { href: '/minutes.html', label: 'Minutes', icon: '📝', show: isAdmin, external: true },
+    { divider: 'SETTINGS', show: isAdmin },
+    { href: '/dashboard/settings', label: 'Settings', icon: '⚙️', show: isAdmin },
+  ];;
 
   const visibleConsoles = allConsoles.filter((c: any) => c.show);
   // Primary tabs for bottom nav
   const primaryTabs = visibleConsoles.filter((c: any) =>
     ['/dashboard', '/dashboard/messages', '/dashboard/check-in', '/dashboard/events', '/dashboard/notifications'].includes(c.href)
   );
-  const internalConsoles = visibleConsoles.filter((c: any) => !c.external);
+  const internalConsoles = visibleConsoles.filter((c: any) => !c.external && !c.divider);
   const currentIndex = internalConsoles.findIndex((c: any) => pathname === c.href);
   const goBack = () => { if (currentIndex > 0) router.push(internalConsoles[currentIndex - 1].href); };
   const goForward = () => { if (currentIndex >= 0 && currentIndex < internalConsoles.length - 1) router.push(internalConsoles[currentIndex + 1].href); };
@@ -116,21 +118,21 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           {sidebarOpen && user && <p style={{ opacity: '0.7', fontSize: '13px', marginBottom: '5px' }}>{user.name || 'User'}</p>}
           {sidebarOpen && <p style={{ opacity: '0.5', fontSize: '11px', marginBottom: '20px' }}>{roles.join(', ')}</p>}
           <nav style={{ display: 'flex', flexDirection: 'column', gap: '3px', flex: 1 }}>
-            {visibleConsoles.map((item: any) => (
-              item.external ? (
-                <a key={item.href} href={item.href} target="_blank" rel="noopener noreferrer" className="sidebar-link" style={{ color: textColor, background: 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 12px', borderRadius: '8px', fontSize: '13px' }}>
-                  <span>{item.icon}</span>{sidebarOpen && <span>{item.label} ↗</span>}
-                </a>
-              ) : (
-                <Link key={item.href} href={item.href} className="sidebar-link" style={{ color: pathname === item.href ? '#fff' : textColor, background: pathname === item.href ? '#3b82f6' : 'transparent', display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 12px', borderRadius: '8px', fontSize: '13px', position: 'relative' }}>
-                  <span>{item.icon}</span>
-                  {sidebarOpen && <span>{item.label}</span>}
-                  {item.badge > 0 && (
-                    <span style={{ background: '#ef4444', color: 'white', fontSize: '10px', fontWeight: 'bold', padding: '2px 6px', borderRadius: '10px', marginLeft: 'auto' }}>{item.badge}</span>
-                  )}
-                </Link>
-              )
-            ))}
+            {visibleConsoles.map((item: any, idx: number) => (
+            item.divider ? (
+              sidebarOpen && item.show ? (
+                <p key={'div-' + idx} style={{ fontSize: '10px', fontWeight: 700, opacity: 0.5, marginTop: '14px', marginBottom: '4px', letterSpacing: '0.5px', paddingLeft: '8px', color: textColor }}>{item.divider}</p>
+              ) : null
+            ) : item.external ? (
+              <a key={item.href} href={item.href} target="_blank" rel="noopener noreferrer" className="sidebar-link" style={{ color: textColor, background: 'transparent', cursor: 'pointer' }}>
+                <span>{item.icon}</span>{sidebarOpen && <span>{item.label} ↗</span>}
+              </a>
+            ) : (
+              <Link key={item.href} href={item.href} className="sidebar-link" style={{ color: pathname === item.href ? '#fff' : textColor, background: pathname === item.href ? '#3b82f6' : 'transparent' }}>
+                <span>{item.icon}</span>{sidebarOpen && <span>{item.label}</span>}
+              </Link>
+            )
+          ))}
           </nav>
           <div style={{ paddingTop: '20px' }}>
             <button onClick={() => setDarkMode(!darkMode)} style={{ width: '100%', padding: '10px', background: darkMode ? '#334155' : '#e2e8f0', color: textColor, border: 'none', borderRadius: '8px', cursor: 'pointer', marginBottom: '10px', fontSize: '14px' }}>
