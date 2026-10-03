@@ -53,6 +53,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   const roles: string[] = (user?.roles || ['member']).map((r: string) => String(r).toLowerCase());
   const isAdmin = roles.some((r: string) => ['father','moderator','secretary','treasurer','organizing','organising','vice','liturgist','patron'].some(k => r.includes(k)));
+  const isParishAdmin = roles.some((r: string) => r.includes('father') || r.includes('moderator'));
 
   const items: any[] = [
     { section: 'MAIN', show: true },
@@ -79,10 +80,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     { href: '/dashboard/vice-moderator', label: 'Vice Moderator', icon: '⚖️', show: isAdmin },
     { href: '/dashboard/vice-secretary', label: 'Vice Secretary', icon: '🧠', show: isAdmin },
 
-    { section: 'SETTINGS', show: isAdmin },
-    { href: '/dashboard/settings', label: 'Settings', icon: '⚙️', show: isAdmin },
-    { href: '/dashboard/settings/scope', label: 'Structure', icon: '🗂️', show: isAdmin },
-    { href: '/dashboard/settings/doc-requirements', label: 'Required Docs', icon: '📄', show: isAdmin },
+    { section: 'SETTINGS', show: isParishAdmin },
+    { href: '/dashboard/settings', label: 'Settings', icon: '⚙️', show: isParishAdmin },
+    { href: '/dashboard/settings/scope', label: 'Structure', icon: '🗂️', show: isParishAdmin },
+    { href: '/dashboard/settings/doc-requirements', label: 'Required Docs', icon: '📄', show: isParishAdmin },
   ];
 
   const visible = items.filter((i: any) => i.show);
