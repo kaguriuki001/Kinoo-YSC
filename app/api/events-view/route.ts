@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import mongoose from "mongoose";
+import { getCallerScope, filterInScope } from "@/lib/scope";
 
 async function getDB() {
   const MONGODB_URI = process.env.MONGODB_URI || "";
