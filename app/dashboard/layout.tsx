@@ -51,9 +51,27 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const bgColor = darkMode ? '#1e293b' : '#ffffff';
   const borderColor = darkMode ? '#334155' : '#e2e8f0';
 
+  // --- Role parsing ---
   const roles: string[] = (user?.roles || ['member']).map((r: string) => String(r).toLowerCase());
-  const isAdmin = roles.some((r: string) => ['father','moderator','secretary','treasurer','organizing','organising','vice','liturgist','patron'].some(k => r.includes(k)));
-  const isParishAdmin = roles.some((r: string) => r.includes('father') || r.includes('moderator'));
+  const roleStr = ',' + roles.join(',') + ',';
+  const has = (slug: string) => roleStr.includes(',' + slug + ',');
+  const hasAny = (list: string[]) => list.some(s => roleStr.includes(s));
+
+  // Parish admins = Father + Moderator
+  const isFather = has('father');
+  const isModerator = has('moderator');
+  const isParishAdmin = isFather || isModerator;
+
+  // Outstation leaders
+  const isViceSecretary = hasAny(['vice-secretary', 'vice secretary', 'vice_secretary', 'vicesecretary']);
+  const isOrganising = hasAny(['organizing-secretary', 'organising-secretary', 'organizing secretary', 'organising secretary', 'organizing-sec', 'organising-sec', 'organizing', 'organising']);
+  const isSecretary = has('secretary') && !isViceSecretary && !isOrganising;
+  const isTreasurer = has('treasurer');
+  const isViceModerator = hasAny(['vice-moderator', 'vice moderator', 'vice_moderator', 'vicemoderator']);
+  const isLiturgist = has('liturgist');
+  const isPatron = hasAny(['patron', 'matron', 'patron-matron', 'patron matron']);
+
+  const isAnyLeader = isParishAdmin || isSecretary || isViceSecretary || isOrganising || isTreasurer || isViceModerator || isLiturgist || isPatron;
 
   const items: any[] = [
     { section: 'MAIN', show: true },
@@ -65,20 +83,20 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     { href: '/dashboard/notifications', label: 'Alerts', icon: '🔔', show: true, badge: notifCount },
     { href: '/dashboard/profile', label: 'Profile', icon: '👤', show: true },
 
-    { section: 'ADMIN CONSOLES', show: isAdmin },
-    { href: '/dashboard/father', label: 'Father', icon: '👑', show: isAdmin },
-    { href: '/dashboard/father/documents', label: 'Doc Approvals', icon: '✅', show: isAdmin },
-    { href: '/dashboard/frago', label: 'FRAGO', icon: '🎯', show: isAdmin },
-    { href: '/dashboard/liturgist', label: 'Liturgist', icon: '✝️', show: isAdmin },
-    { href: '/minutes.html', label: 'Minutes', icon: '📝', show: isAdmin, external: true },
-    { href: '/dashboard/moderator', label: 'Moderator', icon: '🛡️', show: isAdmin },
-    { href: '/dashboard/organizing-secretary', label: 'Organising Sec', icon: '🚌', show: isAdmin },
-    { href: '/dashboard/pairs', label: 'Pairs', icon: '🤝', show: isAdmin },
-    { href: '/dashboard/patron-matron', label: 'Patron/Matron', icon: '👵', show: isAdmin },
-    { href: '/dashboard/secretary', label: 'Secretary', icon: '📋', show: isAdmin },
-    { href: '/dashboard/treasurer', label: 'Treasurer', icon: '💰', show: isAdmin },
-    { href: '/dashboard/vice-moderator', label: 'Vice Moderator', icon: '⚖️', show: isAdmin },
-    { href: '/dashboard/vice-secretary', label: 'Vice Secretary', icon: '🧠', show: isAdmin },
+    { section: 'ADMIN CONSOLES', show: isAnyLeader },
+    { href: '/dashboard/father', label: 'Father', icon: '👑', show: isFather },
+    { href: '/dashboard/moderator', label: 'Moderator', icon: '🛡️', show: isModerator },
+    { href: '/dashboard/father/documents', label: 'Doc Approvals', icon: '✅', show: isParishAdmin },
+    { href: '/dashboard/secretary', label: 'Secretary', icon: '📋', show: isSecretary },
+    { href: '/dashboard/vice-secretary', label: 'Vice Secretary', icon: '🧠', show: isViceSecretary },
+    { href: '/dashboard/organizing-secretary', label: 'Organising Sec', icon: '🚌', show: isOrganising },
+    { href: '/dashboard/treasurer', label: 'Treasurer', icon: '💰', show: isTreasurer },
+    { href: '/dashboard/vice-moderator', label: 'Vice Moderator', icon: '⚖️', show: isViceModerator },
+    { href: '/dashboard/liturgist', label: 'Liturgist', icon: '✝️', show: isLiturgist },
+    { href: '/dashboard/patron-matron', label: 'Patron/Matron', icon: '👵', show: isPatron },
+    { href: '/dashboard/frago', label: 'FRAGO', icon: '🎯', show: isAnyLeader },
+    { href: '/dashboard/pairs', label: 'Pairs', icon: '🤝', show: isAnyLeader },
+    { href: '/minutes.html', label: 'Minutes', icon: '📝', show: isAnyLeader, external: true },
 
     { section: 'SETTINGS', show: isParishAdmin },
     { href: '/dashboard/settings', label: 'Settings', icon: '⚙️', show: isParishAdmin },
