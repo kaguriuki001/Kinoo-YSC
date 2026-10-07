@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
 
@@ -27,6 +27,14 @@ export default function Login() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [devOTP, setDevOTP] = useState("");
   const [resetLoading, setResetLoading] = useState(false);
+  const [stats, setStats] = useState<any>(null);
+
+  useEffect(() => {
+    fetch("/api/stats/public", { cache: "no-store" })
+      .then(r => r.json())
+      .then(d => setStats(d))
+      .catch(() => {});
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -54,7 +62,7 @@ export default function Login() {
         const sessionData = await sessionRes.json();
         if (sessionData?.user) {
           localStorage.setItem('kinoo_user', JSON.stringify(sessionData.user));
-          toast.success("Welcome to Kinoo YSC!");
+          toast.success("Karibu, " + (sessionData.user.name || "friend") + "!");
           window.location.href = "/dashboard";
         } else {
           toast.error("Session failed — try again");
@@ -101,40 +109,108 @@ export default function Login() {
   const inputStyle = { width: '100%', padding: '14px', borderRadius: '10px', border: '1px solid #ddd', fontSize: '16px', outline: 'none', boxSizing: 'border-box' as const };
   const btnStyle = { width: '100%', padding: '14px', background: 'linear-gradient(135deg, #1a1a2e, #0f3460)', color: 'white', border: 'none', borderRadius: '10px', fontSize: '16px', fontWeight: '600' as const, cursor: 'pointer' };
 
+  const upcoming = stats?.upcomingEvent;
+  const upcomingText = upcoming && upcoming.date
+    ? new Date(upcoming.date).toLocaleDateString('en-KE', { day: 'numeric', month: 'short' })
+    : null;
+
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'linear-gradient(135deg, #1a1a2e, #16213e, #0f3460)', padding: '20px' }}>
-      <div style={{ background: 'white', padding: '40px', borderRadius: '20px', boxShadow: '0 20px 60px rgba(0,0,0,0.3)', width: '100%', maxWidth: '420px' }}>
-        <div style={{ textAlign: 'center', marginBottom: '30px' }}>
-          <div style={{ width: '70px', height: '70px', background: 'linear-gradient(135deg, #1a1a2e, #0f3460)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 15px' }}>
-            <span style={{ fontSize: '32px', fontWeight: 'bold', color: 'white' }}>K</span>
-          </div>
-          <h1 style={{ fontSize: '28px', fontWeight: 'bold', color: '#1a1a2e', marginBottom: '5px' }}>Kinoo YSC</h1>
-          <p style={{ color: '#666', fontSize: '14px' }}>Youth Group Management</p>
+    <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #1a1a2e, #16213e, #0f3460)', padding: '20px' }}>
+
+      {/* HERO — social proof + identity */}
+      <div style={{ maxWidth: '460px', margin: '0 auto', paddingTop: '30px', paddingBottom: '20px', textAlign: 'center', color: 'white' }}>
+        <div style={{ width: '64px', height: '64px', background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 14px' }}>
+          <span style={{ fontSize: '28px', fontWeight: 'bold', color: 'white' }}>K</span>
         </div>
+        <h1 style={{ fontSize: '28px', fontWeight: 800, letterSpacing: '-0.5px', marginBottom: '6px' }}>
+          Kinoo YSC
+        </h1>
+        <p style={{ fontSize: '14px', opacity: 0.8, marginBottom: '4px' }}>
+          Forge Youth · Kinoo Parish
+        </p>
+        <p style={{ fontSize: '13px', opacity: 0.55, letterSpacing: '0.5px' }}>
+          Uthiru · Kagondo · Kinoo
+        </p>
+      </div>
+
+      {/* LIVE COUNTERS */}
+      {stats && (stats.members > 0 || stats.outstations > 0) && (
+        <div style={{ maxWidth: '460px', margin: '0 auto 20px', display: 'flex', gap: '8px', justifyContent: 'center', flexWrap: 'wrap' }}>
+          {stats.members > 0 && (
+            <div style={{ background: 'rgba(59,130,246,0.15)', border: '1px solid rgba(59,130,246,0.35)', padding: '8px 14px', borderRadius: '20px', color: '#bfdbfe', fontSize: '12px', fontWeight: 600 }}>
+              👥 {stats.members} members
+            </div>
+          )}
+          {stats.outstations > 0 && (
+            <div style={{ background: 'rgba(16,185,129,0.15)', border: '1px solid rgba(16,185,129,0.35)', padding: '8px 14px', borderRadius: '20px', color: '#a7f3d0', fontSize: '12px', fontWeight: 600 }}>
+              📍 {stats.outstations} outstations
+            </div>
+          )}
+          {stats.checkedInThisWeek > 0 && (
+            <div style={{ background: 'rgba(245,158,11,0.15)', border: '1px solid rgba(245,158,11,0.35)', padding: '8px 14px', borderRadius: '20px', color: '#fde68a', fontSize: '12px', fontWeight: 600 }}>
+              ✅ {stats.checkedInThisWeek} checked in
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* UPCOMING EVENT TICKER */}
+      {upcoming && upcomingText && (
+        <div style={{ maxWidth: '460px', margin: '0 auto 20px', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '12px', padding: '12px 16px', display: 'flex', alignItems: 'center', gap: '12px', color: 'white' }}>
+          <span style={{ fontSize: '22px' }}>📅</span>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <p style={{ fontSize: '11px', opacity: 0.6, letterSpacing: '0.5px', textTransform: 'uppercase' as const, fontWeight: 700 }}>Next up · {upcomingText}</p>
+            <p style={{ fontSize: '14px', fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{upcoming.title}</p>
+          </div>
+        </div>
+      )}
+
+      {/* FORM CARD */}
+      <div style={{ maxWidth: '460px', margin: '0 auto', background: 'white', padding: '32px 28px', borderRadius: '20px', boxShadow: '0 20px 60px rgba(0,0,0,0.4)' }}>
 
         {!showForgot ? (
           <>
-            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+            <div style={{ marginBottom: '22px' }}>
+              <h2 style={{ fontSize: '20px', color: '#1a1a2e', fontWeight: 700, marginBottom: '4px' }}>
+                Karibu tena 👋
+              </h2>
+              <p style={{ fontSize: '13px', color: '#666' }}>
+                Sign in to continue your journey.
+              </p>
+            </div>
+
+            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
               <div>
-                <label style={{ display: 'block', marginBottom: '5px', fontSize: '14px', fontWeight: '500', color: '#333' }}>Phone or Full Name</label>
-                <input type="text" placeholder="e.g., 0712345678 or John Kamau" value={identifier} onChange={(e) => setIdentifier(e.target.value)} style={inputStyle} required />
+                <label style={{ display: 'block', marginBottom: '5px', fontSize: '13px', fontWeight: '600', color: '#333' }}>Phone or Full Name</label>
+                <input type="text" placeholder="e.g., 0712345678 or John Kamau" value={identifier} onChange={(e) => setIdentifier(e.target.value)} style={inputStyle} required autoComplete="username" />
               </div>
               <div>
-                <label style={{ display: 'block', marginBottom: '5px', fontSize: '14px', fontWeight: '500', color: '#333' }}>Password</label>
+                <label style={{ display: 'block', marginBottom: '5px', fontSize: '13px', fontWeight: '600', color: '#333' }}>Password</label>
                 <PasswordInput value={password} onChange={(e: any) => setPassword(e.target.value)} placeholder="Enter your password" style={inputStyle} />
               </div>
               <div style={{ textAlign: 'right' }}>
                 <button type="button" onClick={() => setShowForgot(true)} style={{ background: 'none', border: 'none', color: '#0f3460', cursor: 'pointer', fontSize: '13px', textDecoration: 'underline', padding: 0 }}>Forgot Password?</button>
               </div>
-              <button type="submit" disabled={loading} style={{ ...btnStyle, opacity: loading ? 0.6 : 1 }}>{loading ? "Signing in..." : "Sign In"}</button>
+              <button type="submit" disabled={loading} style={{ ...btnStyle, opacity: loading ? 0.6 : 1 }}>{loading ? "Signing in..." : "Sign In →"}</button>
             </form>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', margin: '20px 0' }}>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', margin: '22px 0' }}>
               <div style={{ flex: 1, height: '1px', background: '#e5e7eb' }} />
-              <span style={{ color: '#999', fontSize: '13px' }}>or</span>
+              <span style={{ color: '#999', fontSize: '12px', fontWeight: 600 }}>NEW HERE?</span>
               <div style={{ flex: 1, height: '1px', background: '#e5e7eb' }} />
             </div>
-            <Link href="/register" style={{ display: 'block', width: '100%', padding: '14px', background: 'white', color: '#0f3460', border: '2px solid #0f3460', borderRadius: '10px', fontSize: '16px', fontWeight: '600', textAlign: 'center', textDecoration: 'none', boxSizing: 'border-box' as const }}>Register Now</Link>
-            <p style={{ textAlign: 'center', marginTop: '15px', fontSize: '13px' }}>
+
+            <Link href="/register" style={{ display: 'block', width: '100%', padding: '14px', background: 'linear-gradient(135deg, #16a34a, #15803d)', color: 'white', border: 'none', borderRadius: '10px', fontSize: '15px', fontWeight: 700, textAlign: 'center', textDecoration: 'none', boxSizing: 'border-box' as const }}>
+              ✨ Join Kinoo YSC
+            </Link>
+
+            <div style={{ marginTop: '18px', display: 'flex', justifyContent: 'center', gap: '14px', flexWrap: 'wrap' }}>
+              <span style={{ fontSize: '11px', color: '#888' }}>🔒 Private</span>
+              <span style={{ fontSize: '11px', color: '#888' }}>📱 Mobile-first</span>
+              <span style={{ fontSize: '11px', color: '#888' }}>🕊️ Safe space</span>
+            </div>
+
+            <p style={{ textAlign: 'center', marginTop: '18px', fontSize: '13px' }}>
               <Link href="/" style={{ color: '#666', textDecoration: 'underline' }}>← Back to Homepage</Link>
             </p>
           </>
@@ -167,6 +243,10 @@ export default function Login() {
           </div>
         )}
       </div>
+
+      <p style={{ textAlign: 'center', marginTop: '20px', fontSize: '11px', color: 'rgba(255,255,255,0.4)' }}>
+        Built for the youth of Kinoo Parish · 2026
+      </p>
     </div>
   );
 }
